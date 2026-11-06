@@ -3,10 +3,14 @@
 **Purpose:** End-to-end product refinement, optimization, functional consistency, interaction design and visual polish.  
 **Target:** Android TV / Google TV, remote-first, landscape, minimum API 26.  
 **Repository:** https://github.com/smile-plzz/NowShowing-Stream-android-app-TV  
-**Baseline reviewed:** `main`, repository search snapshot `5b486a0900a072d525d0e1458b64f816418a6272`; README identifies **1.6.0-rc.5 / versionCode 16004**.  
+**Baseline reference:** README/docs report **1.6.0-rc.5 / versionCode 16004**. The Kotlin source tree was not successfully fetched for the original documentation review; source-level claims below are hypotheses until verified.  
 **Status:** Audit and refinement specification. Do not assume this document authorizes a release, signing changes, destructive data migration or a broad rewrite. Work in a dedicated branch and preserve the current working app.
 
 ---
+
+## Authority and precedence
+
+The owner-supplied **7 November 2026 Product Polish and Refinement Handoff** is incorporated below as the more specific product and implementation brief. Where it is more specific than earlier guidance in this document, follow the owner-supplied brief. In particular, its explicit workstreams for web-session continuation, per-episode watched state, backup/restore, database schema v3, design tokens, navigation, README overhaul, screenshot tests and measured performance baselines are now part of the requested scope. These are implementation proposals, not permission to publish, alter signing, introduce new providers/APIs, or make irreversible data changes. Verify all proposed behavior against source before implementation.
 
 ## 1. Mission
 
@@ -405,3 +409,341 @@ The milestone is complete only when:
 - The owner can understand exactly what changed, what was tested and what remains uncertain.
 
 **Guiding rule:** Make the product feel simpler, not merely make the code look newer. Every enhancement must reduce friction, improve confidence, improve relevance or measurably improve quality. If it does none of those, do not add it.
+
+
+---
+
+# Owner-supplied Product Polish and Refinement Brief
+**Prepared:** 7 November 2026 (Asia/Dhaka)  
+**Owner:** Ismail Hossain  
+**Audience:** Coding agent (Claude Code or similar) picking up the project cold  
+**Baseline reported by README/docs:** 1.6.0-rc.5 / versionCode 16004
+
+> This section is the owner's detailed product specification. It complements the broader product-excellence guidance above and takes precedence where it is more specific.
+
+## A. Evidence limits and mandatory source audit
+
+This brief was prepared from README and documentation including ARCHITECTURE, WEB_PLAYBACK, KNOWN_LIMITATIONS, APP_HEALTH, DAILY_USE_ASSESSMENT, FINAL-PRODUCT-REFINEMENT-HANDOFF and context.md. The Kotlin source tree was not fetched during preparation. Treat every code-behavior statement below as a hypothesis derived from documentation, not verified fact.
+
+**Step 0 is mandatory:** inspect the actual source under `app/src/main/java/com/nowshowing/tv/`, tests, resources, Gradle files, manifests, CI workflows and scripts. Confirm or correct every behavior claim in this brief before editing. Record discrepancies and the actual product state in `docs/PRODUCT_STATE.md`.
+
+### Binding ground rules
+
+1. Preserve owner-approved smoother browsing, working WebView playback and current ad handling. Do not rewrite the player, swap providers or expand ad blocking in this milestone.
+2. No new movie metadata API, paid AI service, account system or backend without explicit owner approval. OMDb remains the metadata source.
+3. Never fake capability. If web-provider playback completion cannot be detected, do not claim autoplay or measured progress.
+4. No stream extraction, DRM circumvention, new third-party provider sources or scraping.
+5. Do not publish, bump a stable version or touch signing without explicit owner instruction. Any new build must use a prerelease version code greater than 16004, after verifying the current branch/version has not advanced.
+6. Run the existing checks before and after changes:
+   ```sh
+   ./gradlew testDebugUnitTest
+   python3 -m unittest discover -s scripts -p 'test_*.py'
+   ./gradlew assembleDebug assembleRelease
+   ```
+7. Any claim of "smoother" or "faster" requires comparable App health recorder numbers from the same physical TV, same route and same build variant.
+
+## B. Product snapshot to verify
+
+Reported product: standalone movie and series discovery for Android TV / Google TV. Reported stack: Kotlin, Jetpack Compose, ViewModels/StateFlow, Retrofit/OkHttp, Coil, SQLiteOpenHelper (schema v2, not Room), WebView, Media3 infrastructure only. Minimum API 26, target/compile SDK 35, JDK 21. OMDb is the metadata source (bundled demo key or up to five user keys). Playback uses third-party web providers inside Android System WebView, with a pointer emulated by the D-pad.
+
+Reported surfaces: Home, Browse (Movies/TV), Mood, Search (keyboard/system keyboard/voice), Watchlist, Details, Player (WebView), Settings (Playback, Metadata, Privacy, Help, App health, About), in-app GitHub update check, cloud JSON catalog and crash diagnostics.
+
+Reported quality signals: 158 JVM tests including Robolectric, CI packaging both APKs with checksums and certificate information, opt-in frame-metrics recording and bounded caches. Verify counts and current status rather than repeating them as facts.
+
+## C. Product diagnosis: highest-impact weaknesses to investigate
+
+1. **Web-page playback with emulated pointer.** Completion, progress, resume, subtitles and fullscreen are provider-dependent; manual Next episode is required. Design the surrounding experience to make these limitations intentional, calm and transparent.
+2. **Continue Watching is not real resume today.** Documentation suggests the table stores measured native progress while no native sources are registered; recently opened means a page was opened. Verify this in source. The proposed web-session continuation below is best-effort reopening, not timestamp resume.
+3. **Documentation contradictions.** Reported inconsistencies include README links using both `NowShowing-Stream-android-app-TV` and `NowShowing-Stream-Android-TV`; ARCHITECTURE, WEB_PLAYBACK and KNOWN_LIMITATIONS headed 1.5.1; a KNOWN_LIMITATIONS section saying 1.6.0-rc.3 is not yet built; README linking rc.3 notes while showing rc.5; context.md describing native-only playback and Room. Verify and correct all actual instances.
+4. **README as changelog.** It reportedly lacks a concise value proposition and screenshots; GitHub About has no description, website or topics.
+5. **Curated discovery is shallow.** Shelves are curated; Browse filters apply only to loaded items; search is title-only; related titles may be empty on cold install.
+6. **Settings density.** Six technical sections reportedly share one TV screen, intimidating non-technical household users.
+7. **No data safety net.** No accounts/sync/backup restore; signing-certificate mismatch can prevent in-place upgrade.
+8. **Performance claims lack real-TV before/after numbers.**
+9. **Public embedded OMDb demo key can hit shared quota.**
+10. **Provider/legal exposure.** The app embeds third-party sites whose licensing it does not control. Distribution channels such as Play and Fire TV are outside this milestone. Document the boundary; do not engineer around provider restrictions.
+
+## D. Product principles
+
+1. Calm over clever: fewer elements, more space, one obvious next action.
+2. Honest states: loading, empty, stale and failed each use one short truthful sentence and one action.
+3. Remote first: every essential action works with D-pad, OK, Back, Menu and Play/Pause; no dead ends or focus traps.
+4. Instant feel: cached content first, no network blocking, no reordering under focus.
+5. Quiet power: advanced controls (keys, filters, diagnostics) exist one level down.
+
+## E. Design system: minimal Apple-like TV / tvOS restraint
+
+Goal: dark, content-forward, soft depth, large type and almost no chrome. Implement as a small token layer and reusable composables. Treat these values as design targets; validate readability and performance on the actual television before locking them.
+
+### E1. Color tokens
+
+Centralize in one `ui/theme/` package:
+- Background base: `#000000` to `#0B0B0D` (near-black).
+- Surface 1: `#161618`; Surface 2: `#1F1F22`.
+- Primary text: `#F5F5F7`.
+- Secondary text: `rgba(245,245,247,0.64)`.
+- Tertiary text: `rgba(245,245,247,0.40)`.
+- Separator: `rgba(255,255,255,0.08)`.
+- Exactly one accent: calm blue `#0A84FF` for focus ring, selected tab and primary action.
+- Red is reserved for destructive/error states. No second accent.
+- Avoid pure white body copy on pure black; use the primary text token to reduce glare.
+
+### E2. Typography
+
+Use one family. Prefer a system-adjacent geometric sans bundled as a font resource (Inter or similar), but check APK size, licensing and rendering before adding a font dependency. Suggested TV scale: Display 56 sp, Title 34 sp, Headline 26 sp, Body 22 sp, Caption 18 sp, Micro 16 sp. Never below 16 sp on TV. Weights: Regular 400, Medium 500, Semibold 600. Tight tracking on Display; normal elsewhere. Verify font scaling and non-Latin fallback.
+
+### E3. Spacing, safe area and shape
+
+- 8-pt spacing scale: 8, 16, 24, 32, 48, 64, 96.
+- Target 5% overscan-safe margins (approximately 96 dp horizontal and 54 dp vertical at 1080p); derive dp from actual density and resolution rather than hard-coding pixel assumptions.
+- Corner radii: 12 dp small controls, 20 dp cards/dialogs, 28 dp hero panels.
+- Prefer continuous curves where supported.
+- No hard borders or heavy drop shadows. A soft shadow only on focused items (target blur 32, y-offset 12, black at 30%) plus subtle scale; profile cost.
+
+### E4. Motion, focus, icons and glass
+
+- Motion target 180–240 ms; ease-out for focus, ease-in-out for screen transitions.
+- Poster focus scale 1.06–1.08; buttons 1.04. Respect system reduced-motion setting.
+- Crossfade only for hero backdrop changes. Preserve the no-poster-crossfade decision for lazy-grid items.
+- No parallax tilt unless it is measured as effectively free.
+- Focused item: scale + soft shadow + 3 dp accent outline, inset 2–3%; no bright block fill. Unfocused items remain flat. Indicator must be visible from 3 metres and consistent across components.
+- One outline icon set, 2 dp stroke, 28–32 dp. Emojis only in Mood when intentionally part of content.
+- Blur only for top navigation/overlays if its cost is measured acceptable on a mid-range TV. Otherwise use solid Surface 1 around 92% opacity.
+
+### E5. Reusable components to build/refactor
+
+Inspect existing shared components first; extend rather than duplicate:
+1. `NsPosterCard`: 2:3, stable dimensions, title/year on focus or a one-line caption; flat Surface 1 placeholder instead of CPU-heavy shimmer.
+2. `NsShelf`: Headline title, horizontal LazyRow, small peek of next card, aligned start padding.
+3. `NsNavBar`: centered text tabs; selected primary text plus 2 dp accent underline; others secondary; no pill backgrounds.
+4. `NsButton`: Primary filled accent, Secondary translucent Surface 2, Text-only; consistent 56 dp height.
+5. `NsChip` and `NsSegmented`: type and sort controls.
+6. `NsDialog` and `NsSheet`: anchored, rounded 20 dp, correct focus containment and restoration.
+7. `NsEmptyState` and `NsErrorState`: icon, one sentence, one action.
+8. `NsToast`: bottom-center, approximately 3 seconds, never steals focus.
+9. `NsSkeleton`: flat blocks, no shimmer by default.
+
+### E6. Screen blueprints
+
+**Home:** Full-bleed 1280×720 backdrop where available, subtle dark bottom gradient, Display title, synopsis capped at two lines, primary Play plus secondary Details and Watchlist toggle. Below: a small set of shelves. Hero should not auto-rotate; change only through explicit user action/focus on a hero selector. Hide empty shelves. Reconcile this with the broader handoff's "single featured moment or compact continuation entry": do not create multiple competing heroes.
+
+**Browse:** Large title, Movies | Series segmented control, one Filters action opening a sheet for Genre, Start year and Sort. Caption: "Showing N from the curated collection" rather than a warning.
+
+**Details:** Poster left; right side title, year, runtime, rating in quiet inline text, plot up to four lines with More on OK, actions Play / Watchlist / Watched. Series episodes below, then More Like This. Cast as names only, one line. Darkened backdrop behind content.
+
+**Search:** Query field with voice mic and system keyboard action; results grid below. D-pad keyboard is a compact on-demand panel, not permanently visible. Recent searches appear as plain text rows when empty.
+
+**Mood:** One scrolling grid of phrase tiles with large type, short descriptor and small emoji. Compact "Year: All Years" button at top-right opens list picker. Results below; honest sparse state.
+
+**Watchlist:** Title, All | Movies | Series segmented filter, sort action, poster grid. Empty state points toward Search.
+
+**Player:** Full-bleed provider page. App overlay is a bottom frosted-dark control bar with episode title, Previous, Next episode (primary), Episodes, Next source, Source and Help. One-line hints appear once and remain available under Help. Overlay auto-hides after approximately four seconds of inactivity and must not permanently cover provider play controls.
+
+**Settings:** Single-column list of four groups: Playback; Library and Data (backup/restore, clear cache); Privacy and Metadata (keys, filters); About and Support. App health/diagnostics move under About and Support > Diagnostics, with a plain-language summary before raw report details.
+
+## F. Prioritized workstreams
+
+### F1. Trust, documentation and version truth (P0)
+
+- Choose one canonical repository name and correct links in README, docs, About, update checker and CI workflows. Verify update checker points to canonical repo.
+- Make Gradle versionName/versionCode the source of truth. Script README banner, About version and release-note links where feasible; add a script test so version strings cannot drift.
+- Reconcile document headings and release notes. Remove or archive "not yet built" sections. Mark context.md historical and correct obsolete Room/native playback claims.
+- Rewrite README: first 15 lines contain one-sentence value proposition, three screenshots (Home, Details, Player overlay), three-step install and documentation links. Move rc changelog material into CHANGELOG.md/release notes.
+- Populate GitHub About description and topics: android-tv, google-tv, jetpack-compose, kotlin, movie-discovery. Add website only if the owner-approved project URL exists.
+- Add `docs/PRODUCT_STATE.md`: what works, what is provider-dependent and what still needs physical-TV acceptance.
+- Acceptance: a new agent can read README + PRODUCT_STATE without contradictory claims; CI fails when version strings disagree.
+
+### F2. Visual system (P0)
+
+Implement E1–E5 as a token layer and reusable components. Migrate screens incrementally behind current navigation. Remove hard borders/heavy fills/second accent. Apply overscan-safe margins to every route. Contrast targets: body text at least 7:1 on Surface 1; secondary at least 4.5:1. Validate actual rendered contrast rather than trusting alpha values. Acceptance: route screenshots at 1080p emulator and real TV show consistent margins, type scale and focus treatment; no TV text below 16 sp unless a documented exception is approved.
+
+### F3. Navigation, focus and information architecture (P0)
+
+- Evaluate a centered text-tab nav: Home, Movies, Series, Mood, Search, Watchlist, Settings. Reuse one grid component for Movies/Series where appropriate; preserve existing navigation contracts.
+- Document a focus map per screen: entry focus, directional exits and Back target.
+- Back closes transient sheet/dialog first, then pops screen; app exit confirmation only from Home if appropriate.
+- Preserve and extend `ReturnFocusScope` for Browse filter sheet and Mood year picker.
+- Add Robolectric tests for route entry focus and return focus.
+- Acceptance: no focus traps; Back depth is predictable; dialogs always restore focus.
+
+### F4. Home and discovery (P1)
+
+- Add a Continue shelf only when it has real, useful entries (see F8). For web sources, label reopening honestly.
+- Hero uses first Featured item, with Play + Details; no auto-rotate.
+- Cached-first progressive population; no focus jump. Put last-updated timestamp in Settings/Diagnostics, not Home.
+- Surface catalog manifest revision and last refresh in diagnostics; preserve last-known-good snapshot on failure.
+- Label shelves honestly: Featured, Picks for Movies, Picks for Series. Do not say Trending or New Releases without a real permitted source.
+- Acceptance: cold start shows cached shelves before network completion; failed refresh never empties a visible shelf.
+
+### F5. Details (P1)
+
+- Follow E6 layout. Play is default focus when available.
+- Add Watched toggle alongside Watchlist, subject to F8 storage/migration.
+- Season selector as horizontal text list; episode rows show number/title and subtle watched indicator.
+- "Retry episodes" remains available after metadata failure.
+- More Like This: themes first, tone/setting next, actors weak; deduplicate before cap; never pad; show 1–6 credible results or hide section.
+- Cast names only.
+- Acceptance: title and Play render before recommendations resolve; series never shows stale episodes from previous title.
+
+### F6. Search (P1)
+
+- System keyboard and voice are primary input; D-pad keyboard is secondary/on-demand.
+- Debounce typing around 300 ms and cancel superseded requests, if compatible with existing query behavior.
+- Keep Load more with retry-next-page behavior.
+- Empty state shows last eight recent searches and "Try voice search" hint where voice is available.
+- Optional year is a small inline control.
+- Acceptance: voice result fills field and triggers exactly one search; editing query clears obsolete errors.
+
+### F7. Mood and year picker (P1)
+
+- Keep stable internal mood IDs separate from display phrases; use short phrase labels and All Years default.
+- Year picker has Apply/Back semantics; changing year filters current candidate snapshot locally and causes no request fan-out.
+- Fix relevance defect if confirmed: OMDb `s` is title search, not genre/theme search. Never query OMDb with genre or theme words. Use bounded known-ID pools (cache, bundled seeds, cloud collections) and rank by authored mood evidence.
+- Sparse state: "No matches in the current collection" with All Years/another mood actions.
+- Deterministic ranking; mood/year changes do not reroll. Add positive and counterexample tests per mood.
+
+### F8. Library: watchlist, web-session continuation, watched episodes and backup (P0/P1)
+
+**Web continuation — best-effort reopen, not playback resume:**
+- Record per title: last episode (where relevant), last selected source and last-opened timestamp.
+- A Continue entry may say "Resume S2 E4" only when it can reopen that exact episode/source. It must not claim timestamp resume or measured playback progress.
+- Use an accurate concept/label such as Continue or Recently Opened, and explain that it reopens the title/episode rather than resuming the video position.
+- Preserve a useful empty state; hide shelf when empty.
+
+**Per-episode watched marks:**
+- Add manual watched toggle per episode, plus one-press "Mark previous as watched" where season/episode ordering is known.
+- Store in a new database table with a non-destructive schema v3 migration. Confirm current DB version and schema in source first; if it has already advanced, design the next safe migration instead of downgrading/reusing v3.
+- Do not infer watched status from page load or last-opened timestamp.
+
+**Backup and restore:**
+- Export watchlist, watched marks and recently opened entries to a local JSON file using a system share/save chooser where supported.
+- Import with strict schema/version validation, duplicate handling and merge semantics. Never silently overwrite existing data.
+- Exclude API keys, provider URLs, raw browsing data and secrets. Only include fields necessary to restore the user's library.
+- Provide a preview/count and explicit confirmation before merge. Handle malformed/oversized files safely.
+- This is a local backup, not account sync or cloud backup.
+
+**Watchlist:**
+- Keep type filter and sorting.
+- Add one-press remove with Undo toast where safe.
+- Acceptance: v2 seeded DB migrates with every existing row preserved; export/import round trip restores library; reinstall recovery works from a user-saved export; no provider URL or key in export.
+
+### F9. Player experience (P1)
+
+- Preserve WebView provider and pointer model. Redesign overlay only.
+- Next episode is primary; Next Source remains one press; show current source name quietly.
+- Pointer appearance: slightly larger, softer cursor with thin white ring. Add Slow / Normal / Fast Pointer speed under Playback only if current pointer code supports safe tuning.
+- Hints appear once, one line, then Help.
+- At 25-second loading timeout (verify existing timeout), show calm card: "This source is slow. Try next source" with Retry and Next source.
+- Renderer crash recovery uses same calm card; no raw exception text.
+- Back order: exit provider fullscreen, then controls, then title.
+- Smoke-test same provider flow on owner's TV. Overlay auto-hides after ~4 seconds of inactivity and does not permanently cover provider controls.
+- No provider rewrite, source addition, extraction, DRM bypass or ad-blocking expansion.
+
+### F10. Settings simplification (P1)
+
+- Four groups as specified in E6: Playback; Library and Data; Privacy and Metadata; About and Support.
+- Plain-language labels and one-sentence helper text for toggles.
+- Metadata keys stay local. Add Test key with clear result; keep Use demo key separate.
+- Diagnostics: plain-language summary first, raw report behind View details; keep opt-in recording and report-page review.
+- Add Reset app data (must preserve watchlist as specified) and Clear cache with sizes, but first define exactly which preferences/history/metadata each action clears. Never make Reset app data and Clear cache ambiguous or destructive.
+- Acceptance: every common setting reachable within three D-pad moves from Settings root; diagnostics are not required for normal use.
+
+### F11. Performance and measured optimization (P1)
+
+**Baseline before optimization:**
+- Use App health recorder on owner's physical TV, release variant.
+- Route: Home → Movies → Details → Back → Watchlist → Search → Player → Back.
+- Run three repetitions each in cold and warm conditions, with consistent network/cache conditions.
+- Save median, p95, p99, slow-frame counts and sample counts in `docs/PERF_BASELINE.md`.
+- Capture device/TV model, Android/API, WebView version, app commit, version/variant, recorder settings, route and cold/warm definition.
+- Do not invent values or compare incomparable sessions.
+
+**Only then evaluate candidates**, verifying each in source: Compose stability/recomposition in shelves, derivedStateOf for focus-driven UI, Baseline Profiles/startup profile, R8 full mode, resource shrinking, image request size hints (reported 300×450 posters and 1280×720 backdrops), unnecessary unfocused-card shadow overdraw. Add Macrobenchmark/Baseline Profile generation only if it can be maintained and CI supports it; otherwise document pending.
+
+Acceptance: every optimization PR includes before/after numbers from same TV/route/variant; p95 regression greater than 10% blocks merge unless explained and explicitly accepted. No claim of faster/smoother without those numbers.
+
+### F12. Reliability and truthful state copy (P1)
+
+Create a shared copy deck for loading, empty, offline, quota, invalid key, service down, stale cache and no matches. One sentence and one action per state. Examples:
+- Offline: "Offline. Showing saved titles."
+- Sparse curated pool: "No matches in the current collection."
+- Slow provider: "This source is taking longer than expected."
+- Demo quota: gentle suggestion to add a personal key in Settings, not an error wall.
+
+Preserve cached content on failure across Home, Browse, Mood, Search and Details. Airplane-mode walkthrough must show no blank screens or raw exception text. Distinguish no-results from quota, key, service and network failures.
+
+### F13. Accessibility (P2)
+
+- Content descriptions for focusable cards: title, year and type.
+- Respect system font scale up to 1.3 without clipping at 1080p.
+- Respect reduced motion.
+- Do not rely on color alone for selected/watched state; pair with icon or text.
+- Verify TalkBack announces focus changes on Settings and Details.
+- Keep remote-first focus sizes and contrast; test long/non-Latin text.
+
+### F14. Testing and QA (P0 throughout)
+
+- Preserve existing tests; reported baseline is 158, verify current count.
+- Add screenshot tests (Roborazzi or Paparazzi after checking Compose/Gradle compatibility) for every route in default and focused states to prevent visual drift.
+- Extend `docs/TV_ACCEPTANCE.md` with exact route and checks; reconcile headings and route list with current app.
+- Verify upgrade path: install prior release, add watchlist entries, install new build signed with same certificate and confirm data survives.
+- Seed a schema-v2 DB and test non-destructive migration to the new schema.
+- Run all three required checks before and after implementation. Record exact outputs and failures.
+
+### F15. Privacy, legal and distribution (P0 awareness; owner decision)
+
+- Public embedded OMDb demo key is public by design; retain warning and personal-key path.
+- Keep API URL logging disabled and diagnostics allowlisted. Exports must not include keys, provider URLs or title history beyond the minimal explicitly required recently-opened records. Review exact export fields with privacy in mind.
+- Update checker must point to canonical GitHub release, verify checksum and require user confirmation before install. Do not weaken validation.
+- Third-party provider licensing is outside owner control. No new provider sources, bypasses or claims of guaranteed content availability.
+- Document plainly in `docs/PRIVACY_AND_BLOCKING.md` and About: "NowShowing is a discovery app; availability depends on third-party providers."
+- Play Store, Fire TV store and other distribution expansion are outside this milestone and require a separate owner decision.
+
+### F16. Release and signing (P0 gate)
+
+- Signing continuity is not proven; prereleases may be development-signed. Before a stable release, require a durable signing key stored as a CI secret, documented certificate fingerprint and tested same-certificate upgrade.
+- Never ask owner to uninstall the main app to bypass mismatch. Preview package exists for side-by-side testing.
+- Each prerelease build must have a version code greater than 16004 (or greater than the latest actual code if the branch advanced), CI green, both APKs, checksums, certificate report and exact commit in About.
+- Do not publish, promote to stable, rotate keys or alter signing without explicit owner approval.
+
+## G. Explicitly out of scope
+
+- Replacing OMDb or adding TMDB, Trakt or similar.
+- Accounts, cloud sync or backend services.
+- Native playback or stream extraction.
+- Ad-blocking expansion, player/provider rewrites.
+- Cast photos.
+- Tizen, webOS, Fire TV certification or Google Play publication.
+- Live trending/popularity rankings without a permitted data source.
+
+## H. Required execution order and gates
+
+| Step | Deliverable | Gate |
+|---|---|---|
+| 0 | Read source; diff against this brief; record corrections in `docs/PRODUCT_STATE.md` | Brief matches reality |
+| 1 | F1 documentation/version truth, F14 screenshot harness, F11 performance baseline | Contradictions removed; baseline saved |
+| 2 | F2 + F3 design tokens, components, navigation and focus maps | Screenshots consistent; focus tests green |
+| 3 | F5 + F4 + F6 Details, Home and Search | Cached-first and truthful states verified |
+| 4 | F7 Mood and year | Deterministic ranking/year tests pass |
+| 5 | F8 continuation, watched episodes, backup/restore and safe migration | Round-trip and migration tests pass |
+| 6 | F9 + F10 Player overlay and Settings | Physical-TV playback smoke test unchanged |
+| 7 | F11 measured optimization, F12 reliability and F13 accessibility | Before/after table and QA evidence |
+| 8 | Prerelease candidate with new version code; real-TV acceptance | Owner signs off on actual TV |
+
+One focused PR per step where practical. If dependencies force a different order, explain why and retain the same gates. Do not bundle a schema migration, design-system overhaul and player changes into one unreviewable change.
+
+## I. Definition of done — owner acceptance
+
+- Every route uses shared design tokens/components; no unexplained hard-coded colors/sizes outside theme.
+- Focus is visible, consistent and recoverable; Back behavior predictable.
+- No blank screen or raw exception in offline/quota/service-failure paths.
+- Web Continue reopens the recorded episode/source honestly, without timestamp-resume claims.
+- Per-episode watched marks and backup/restore work; schema migration preserves existing rows.
+- README, docs, About, update checker and CI agree on repository and version.
+- Performance claims have comparable real-TV measurements.
+- Existing playback, ad handling, metadata failover and privacy guarantees are unchanged.
+- Owner accepts candidate on actual TV.
+
+## J. Starter prompt for the implementation agent
+
+> Read `docs/PRODUCT-EXCELLENCE-AGENT-HANDOFF.md` fully. First inspect the actual source under `app/src/main/java/com/nowshowing/tv/`, tests, resources, Gradle configuration, manifests, scripts and CI. The source tree was not fetched during preparation, so list every place where this brief's code-behavior claims are wrong or unverified, then record corrections in `docs/PRODUCT_STATE.md`. Work in the order of section H, one focused PR per step. Preserve working WebView playback, current ad handling, metadata failure behavior and privacy boundaries. Implement the minimal Apple-like TV design system incrementally. Do not add APIs, providers, accounts, backend or ad-blocking changes. Do not publish or touch signing. For every performance claim, include before/after numbers from the same physical TV, route and build variant. Use a prerelease version code greater than the current baseline only when a build is required. Report completed work, exact tests, what could not be verified without the physical TV, risks, and decisions requiring owner approval.
