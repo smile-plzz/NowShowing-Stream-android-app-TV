@@ -30,6 +30,7 @@ class SearchViewModel(application: Application, private val repository: MediaRep
     constructor(application: Application) : this(application, MediaRepository(application))
 
     private var searchJob: Job? = null
+    private var debounceJob: Job? = null
     private var failedPage: Int? = null
     private var resultIdentity: Triple<String, String, Int?>? = null
     private val _uiState = MutableStateFlow(SearchUiState())
@@ -48,12 +49,19 @@ class SearchViewModel(application: Application, private val repository: MediaRep
 
     fun setQuery(query: String) {
         searchJob?.cancel()
+        debounceJob?.cancel()
         failedPage = null
-        _uiState.update { it.copy(query = query.take(200), isLoading = false, errorMessage = null) }
+        val trimmed = query.take(200)
+        _uiState.update { it.copy(query = trimmed, isLoading = false, errorMessage = null) }
+        if (trimmed.trim().length >= 2) {
+            debounceJob = viewModelScope.launch {
+                kotlinx.coroutines.delay(300)
+                executeSearch(trimmed, reset = true)
+            }
+        }
     }
 
     fun onCharInput(c: Char) {
-        searchJob?.cancel()
         setQuery(_uiState.value.query + c)
     }
 
@@ -61,6 +69,7 @@ class SearchViewModel(application: Application, private val repository: MediaRep
 
     fun onClear() {
         searchJob?.cancel()
+        debounceJob?.cancel()
         resultIdentity = null
         failedPage = null
         _uiState.update {
@@ -79,6 +88,7 @@ class SearchViewModel(application: Application, private val repository: MediaRep
     fun setTypeFilter(type: String) {
         if (type !in listOf("all", "movie", "series") || type == _uiState.value.selectedType) return
         searchJob?.cancel()
+        debounceJob?.cancel()
         failedPage = null
         resultIdentity = null
         _uiState.update {
@@ -100,6 +110,7 @@ class SearchViewModel(application: Application, private val repository: MediaRep
     fun setYearFilter(year: Int?) {
         if (year != null && year !in 1888..2100) return
         searchJob?.cancel()
+        debounceJob?.cancel()
         _uiState.update {
             it.copy(
                 year = year,
@@ -134,6 +145,7 @@ class SearchViewModel(application: Application, private val repository: MediaRep
 
         if (!reset && _uiState.value.isLoading) return
         searchJob?.cancel()
+        debounceJob?.cancel()
         val targetPage = if (effectiveReset) 1 else _uiState.value.currentPage + 1
         failedPage = null
         // Publish synchronously: repeated remote clicks must see the request as busy.

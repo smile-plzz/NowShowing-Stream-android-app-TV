@@ -408,3 +408,42 @@ unCatching to prevent sandbox SQLite connection teardown exceptions from interru
   - `compileDebugKotlin` & `compileReleaseKotlin`: **BUILD SUCCESSFUL** (0 warnings, 0 errors).
   - `testDebugUnitTest`: **100% PASS** (158 tests passed in 1m 7s).
   - Python release & integrity tests: **100% PASS** (8/8 tests in 0.06s).
+
+## [2026-11-07 19:20] - Phase 17: Product Excellence, Apple-like TV Restraint, Schema v3 & Settings Simplification
+- **Task**: Address `docs/PRODUCT-EXCELLENCE-AGENT-HANDOFF.md` end-to-end under `/goal` execution mode on branch `feat/product-excellence-and-polish`.
+- **Accomplishments**:
+  - **F1 & F11 Documentation & Truth Sync**:
+    - Created `docs/PRODUCT_STATE.md` mapping current product architecture, route inventory, provider policies, and persistence truth.
+    - Created `docs/PERF_BASELINE.md` establishing standardized physical TV benchmark protocols and frame-timing criteria.
+    - Updated `README.md`, `context.md`, `docs/ARCHITECTURE.md`, `docs/KNOWN_LIMITATIONS.md`, and `docs/WEB_PLAYBACK.md`.
+    - Added `scripts/test_version_truth.py` (all 12 python tests passing).
+  - **F2 & F3 Design Tokens & Apple-like TV Restraint Components**:
+    - Updated `Color.kt` and `Theme.kt` with Apple TV-inspired tokens (`NsBackground`, `NsSurface1`, `NsSurface2`, `NsAccent`, `NsDestructive`, `NsSpacing`, `NsShape`, `NsTypography`).
+    - Created `NsComponents.kt` containing `NsPosterCard`, `NsShelf`, `NsNavBar`, `NsButton`, `NsSegmentedControl`, `NsStateMessage`, and `NsToast`.
+    - Added `DesignSystemTest.kt` verifying WCAG AAA contrast (>= 7:1) and type scale bounds (>= 16sp).
+  - **F4 Home & Continuation Honesty**:
+    - Updated `HomeScreen.kt` with a single calm hero card (Play + More Info, no auto-rotation) and honest shelf labels ("Recently opened" and "Continue Watching · Direct streams").
+  - **F5 Details Polish & Watched Tracking**:
+    - Updated `DetailsViewModel.kt` and `DetailsScreen.kt` with initial focus on Play, per-episode watched checkmarks, and one-press "Mark up to E$N Watched" action.
+  - **F6 Search Polish**:
+    - Updated `SearchViewModel.kt` with 300ms query debouncing.
+    - Updated `SearchScreen.kt` distinguishing empty search results from network/API service failures with actionable guidance.
+  - **F7 Mood & Year Picker Polish**:
+    - Updated `MoodScreen.kt` with refined phrase tiles and compact year picker dialog.
+  - **F8 Database Schema v3, Watched Episodes & Backup/Restore**:
+    - Updated `NowShowingDatabase.kt`: bumped to `DATABASE_VERSION = 3`, added `watched_episodes` table, additive migration, `exportLibrary()`, and `importLibrary()`.
+    - Added `DatabaseMigrationAndBackupTest.kt` testing v2->v3 migration, JSON round-trip backup/restore, invalid payload rejection, and app reset.
+  - **F9 Player Experience & Pointer Sensitivity**:
+    - Updated `PlaybackPreferences.kt` with `pointerSpeed` ("Precision" 0.5x, "Slow" 0.75x, "Normal" 1.0x, "Fast" 1.35x).
+    - Updated `PointerMotion.kt` with bounded acceleration multipliers.
+    - Updated `WebEmbedScreen.kt` with softened circular translucent ring cursor and 4-second overlay auto-hide.
+    - Added unit tests in `PointerMotionTest.kt` and `PlaybackPreferencesTest.kt`.
+  - **F10 Settings Simplification (4 Groups)**:
+    - Reorganized `SettingsScreen.kt` and `SettingsViewModel.kt` into 4 clear groups: *Playback*, *Library & Data*, *Privacy & Metadata*, and *About & Support*.
+    - Added live OMDb API key testing action and application data reset dialog.
+- **Verification Results**:
+  - `compileDebugKotlin`: **BUILD SUCCESSFUL** (0 errors).
+  - `testDebugUnitTest`: **100% PASS** (171 tests across 41 suites, 0 failures, 0 ignored).
+  - Python scripts: **100% PASS** (12/12 tests passing).
+  - `assembleDebug` & `assembleRelease`: **BUILD SUCCESSFUL** (`app-debug.apk`: 22.75 MB, `app-release.apk`: 10.55 MB with R8 shrinking and resource optimization).
+- **Status**: Complete, verified, and ready for commit on `feat/product-excellence-and-polish`.

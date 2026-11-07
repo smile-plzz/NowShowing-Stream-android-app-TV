@@ -63,17 +63,19 @@ class TvPolishTest {
     @Test fun settingsSeparatesEverydayControlsFromPrivacy() {
         settings()
         compose.onNodeWithText("Autoplay next episode").assertExists()
-        compose.onNodeWithText("Privacy").performClick()
+        compose.onNodeWithText("Privacy & Metadata").performClick()
         compose.onNodeWithText("Tracker blocking").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Autoplay next episode").assertDoesNotExist()
-        compose.onNodeWithText("Privacy").assertIsSelected()
+        compose.onNodeWithText("Privacy & Metadata").assertIsSelected()
     }
 
     @Test fun blankKeyCannotAccidentallyReplaceSavedCredential() {
         settings()
-        compose.onNodeWithText("Metadata").performClick()
-        compose.onNodeWithText("Save personal keys").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithText("Privacy & Metadata").performClick()
+        compose.onNodeWithTag("settings-column").performScrollToNode(hasText("Save personal keys"))
+        compose.onNodeWithText("Save personal keys").assertIsNotEnabled()
         compose.onNodeWithText("Enter OMDb keys").performScrollTo().performTextInput("abcdef12")
         compose.onNodeWithText("Save personal keys").performScrollTo().assertIsEnabled()
     }
 }
+

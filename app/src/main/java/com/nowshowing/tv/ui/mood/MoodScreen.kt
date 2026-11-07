@@ -54,16 +54,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nowshowing.tv.domain.mood.MoodItem
 import com.nowshowing.tv.domain.mood.MoodRecommendationEngine
-import com.nowshowing.tv.ui.common.TvFocusableCard
-import com.nowshowing.tv.ui.common.TvTopBar
-import com.nowshowing.tv.ui.theme.AccentCyan
-import com.nowshowing.tv.ui.theme.AccentGold
-import com.nowshowing.tv.ui.theme.BgDark
-import com.nowshowing.tv.ui.theme.FocusBorder
-import com.nowshowing.tv.ui.theme.SurfaceDark
-import com.nowshowing.tv.ui.theme.SurfaceVariant
-import com.nowshowing.tv.ui.theme.TextMuted
-import com.nowshowing.tv.ui.theme.TextPrimary
+import com.nowshowing.tv.ui.common.*
+import com.nowshowing.tv.ui.theme.*
 
 @Composable
 fun MoodScreen(
@@ -162,14 +154,15 @@ fun MoodScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(if (uiState.selectedMood == null) "Choose a mood to discover something new." else uiState.statusMessage,
-                            color = TextMuted, fontSize = 17.sp)
-                        if (uiState.selectedMood != null) {
-                            Spacer(Modifier.height(12.dp))
-                            com.nowshowing.tv.ui.player.TvPlayerActionButton("Try this mood again", null) { viewModel.retry() }
+                    NsStateMessage(
+                        title = if (uiState.selectedMood == null) "Select a Mood" else "No matches in current collection",
+                        message = if (uiState.selectedMood == null) "Choose how you're feeling to discover matching titles." else uiState.statusMessage,
+                        actionLabel = if (uiState.selectedYear != null) "Clear Year Filter" else if (uiState.selectedMood != null) "Try Again" else null,
+                        onAction = {
+                            if (uiState.selectedYear != null) viewModel.selectYear(null)
+                            else viewModel.retry()
                         }
-                    }
+                    )
                 }
             } else {
                 LazyVerticalGrid(
@@ -181,14 +174,15 @@ fun MoodScreen(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     items(uiState.recommendations, key = { it.imdbID }) { movie ->
-                        TvFocusableCard(
+                        NsPosterCard(
+                            focusKey = "mood:${movie.imdbID}",
                             title = movie.title,
                             posterUrl = movie.poster,
                             year = movie.year,
-                            rating = if (movie.rating > 0f) movie.rating.toString() else "",
-                            badge = null,
-                            onClick = { onTitleClick(movie.imdbID, movie.type) },
-                            focusKey = movie.imdbID
+                            badge = if (movie.rating > 0f) "★ ${movie.rating}" else null,
+                            width = 145.dp,
+                            height = 218.dp,
+                            onClick = { onTitleClick(movie.imdbID, movie.type) }
                         )
                     }
                 }
@@ -206,21 +200,20 @@ private fun MoodPill(
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
     val scale by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (isFocused) 1.06f else 1.0f,
+        targetValue = if (isFocused) 1.05f else 1.0f,
         animationSpec = androidx.compose.animation.core.tween(150, easing = androidx.compose.animation.core.FastOutSlowInEasing),
         label = "mood_pill_scale"
     )
 
     val bg = when {
-        isFocused -> FocusBorder
-        isSelected -> SurfaceVariant
-        else -> SurfaceDark
+        isFocused -> NsSurface2
+        isSelected -> NsSurface2.copy(alpha = 0.85f)
+        else -> NsSurface1
     }
 
     val textColor = when {
-        isFocused -> Color.Black
-        isSelected -> AccentCyan
-        else -> TextPrimary
+        isFocused || isSelected -> NsTextPrimary
+        else -> NsTextSecondary
     }
 
     Row(
@@ -228,31 +221,31 @@ private fun MoodPill(
             .scale(scale)
             .shadow(
                 elevation = if (isFocused) 10.dp else 0.dp,
-                shape = RoundedCornerShape(12.dp),
-                spotColor = if (isFocused) com.nowshowing.tv.ui.theme.FocusGlow else Color.Transparent
+                shape = RoundedCornerShape(NsShape.cardRadius),
+                spotColor = NsFocusShadow
             )
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(NsShape.cardRadius))
             .background(bg)
             .border(
-                width = if (isFocused) 2.dp else if (isSelected) 1.5.dp else 1.dp,
-                color = if (isFocused) Color.White else if (isSelected) AccentCyan else Color.White.copy(alpha = 0.08f),
-                shape = RoundedCornerShape(12.dp)
+                width = if (isFocused) 3.dp else 1.dp,
+                color = if (isFocused) NsAccent else if (isSelected) NsAccent.copy(alpha = 0.6f) else NsSeparator,
+                shape = RoundedCornerShape(NsShape.cardRadius)
             )
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick
             )
-            .padding(horizontal = 16.dp, vertical = 11.dp),
+            .padding(horizontal = 20.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text = mood.emoji, fontSize = 16.sp)
-        Spacer(modifier = Modifier.width(8.dp))
+        Text(text = mood.emoji, fontSize = 20.sp)
+        Spacer(modifier = Modifier.width(10.dp))
         Text(
             text = mood.label,
             color = textColor,
-            fontSize = 13.sp,
-            fontWeight = if (isSelected || isFocused) FontWeight.Bold else FontWeight.Medium
+            fontSize = 16.sp,
+            fontWeight = if (isSelected || isFocused) FontWeight.SemiBold else FontWeight.Medium
         )
     }
 }
@@ -271,37 +264,37 @@ private fun SurpriseMeButton(onClick: () -> Unit) {
         modifier = Modifier
             .scale(scale)
             .shadow(
-                elevation = if (isFocused) 10.dp else 2.dp,
-                shape = RoundedCornerShape(10.dp),
-                spotColor = if (isFocused) com.nowshowing.tv.ui.theme.FocusGlow else Color.Transparent
+                elevation = if (isFocused) 10.dp else 0.dp,
+                shape = RoundedCornerShape(NsShape.smallControlRadius),
+                spotColor = NsFocusShadow
             )
-            .clip(RoundedCornerShape(10.dp))
-            .background(if (isFocused) FocusBorder else AccentGold)
+            .clip(RoundedCornerShape(NsShape.smallControlRadius))
+            .background(if (isFocused) NsSurface2 else NsSurface1)
             .border(
-                width = if (isFocused) 2.dp else 0.dp,
-                color = if (isFocused) Color.White else Color.Transparent,
-                shape = RoundedCornerShape(10.dp)
+                width = if (isFocused) 3.dp else 1.dp,
+                color = if (isFocused) NsAccent else NsSeparator,
+                shape = RoundedCornerShape(NsShape.smallControlRadius)
             )
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick
             )
-            .padding(horizontal = 16.dp, vertical = 9.dp),
+            .padding(horizontal = 18.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = Icons.Default.AutoAwesome,
             contentDescription = "Surprise Me",
-            tint = Color.Black,
-            modifier = Modifier.size(16.dp)
+            tint = if (isFocused) NsAccent else NsTextPrimary,
+            modifier = Modifier.size(18.dp)
         )
-        Spacer(modifier = Modifier.width(6.dp))
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = "Surprise Me",
-            color = Color.Black,
-            fontWeight = FontWeight.Bold,
-            fontSize = 13.sp
+            color = if (isFocused) NsAccent else NsTextPrimary,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 16.sp
         )
     }
 }
@@ -314,9 +307,16 @@ internal fun YearPicker(selected: Int?, onDismiss: () -> Unit, onApply: (Int?) -
     val focus = remember { FocusRequester() }
     var initialFocusRequested by remember { mutableStateOf(false) }
     Dialog(onDismissRequest = onDismiss) {
-        Column(Modifier.width(270.dp).background(SurfaceDark, RoundedCornerShape(16.dp)).padding(20.dp)) {
-            Text("Release year", color = TextPrimary, fontSize = 20.sp)
-            Text("OK selects · Back cancels", color = TextMuted, fontSize = 12.sp)
+        Column(
+            Modifier
+                .width(300.dp)
+                .background(NsSurface1, RoundedCornerShape(NsShape.dialogRadius))
+                .border(1.dp, NsSeparator, RoundedCornerShape(NsShape.dialogRadius))
+                .padding(24.dp)
+        ) {
+            Text("Release year", style = NsTypography.Title, color = NsTextPrimary)
+            Text("OK selects · Back cancels", style = NsTypography.Caption, color = NsTextSecondary)
+            Spacer(modifier = Modifier.height(12.dp))
             androidx.compose.foundation.lazy.LazyColumn(state = list, modifier = Modifier.height(260.dp)) {
                 items(years.size) { row ->
                     val rowModifier = if (row == index) Modifier.focusRequester(focus).onGloballyPositioned {

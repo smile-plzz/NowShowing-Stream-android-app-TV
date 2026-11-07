@@ -1,4 +1,10 @@
-> Historical planning/reference document. Current implemented behavior is specified in [README](README.md), [Architecture](docs/ARCHITECTURE.md) and [Web playback](docs/WEB_PLAYBACK.md). Native-only, Room, automatic iframe completion and demo-as-movie claims below are superseded. Candidate device checks are in TV_ACCEPTANCE.md.
+> **Historical planning & reference document.**  
+> Current implemented architecture is specified in [README](README.md), [Architecture](docs/ARCHITECTURE.md), [Product State](docs/PRODUCT_STATE.md), and [Web playback](docs/WEB_PLAYBACK.md).  
+> The original exploratory claims below regarding Room, exclusive native-only playback without WebViews, automatic iframe completion, and demo streams have been superseded:
+> 1. Storage is **SQLiteOpenHelper** (`NowShowingDatabase.kt`), not Room.
+> 2. Provider playback uses **Android System WebView** (`PointerWebView`) with remote-emulated pointer navigation; no native stream providers are currently registered.
+> 3. Web episode advancement is explicit manual Next episode; web iframe progress is not claimed as measured native resume.
+> 4. The project is located in `app/` as a standalone Android TV repository.
 
 # Project Context: NowShowing TV
 

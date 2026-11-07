@@ -23,6 +23,7 @@ data class SettingsUiState(
     val hasPersonalKey: Boolean = false,
     val personalKeyCount: Int = 0,
     val autoplay: Boolean = true,
+    val pointerSpeed: String = "Normal",
     val metadataStatus: String = "No failure recorded; not a connectivity test",
     val diagnosticText: String = "Select Refresh diagnostics to collect device and cache information.",
     val maintenanceMessage: String? = null,
@@ -36,7 +37,9 @@ data class SettingsUiState(
     val totalRedirectsBlocked: Long = 0L,
     val exemptSources: Set<String> = emptySet(),
     val updateStatusMessage: String? = null,
-    val isUpdatingFilters: Boolean = false
+    val isUpdatingFilters: Boolean = false,
+    val isExportingLibrary: Boolean = false,
+    val isImportingLibrary: Boolean = false
 )
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
@@ -67,6 +70,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun refreshState() {
         _uiState.value = _uiState.value.copy(
             autoplay = playback.autoplay,
+            pointerSpeed = playback.pointerSpeed,
             personalKeyCount = com.nowshowing.tv.data.api.MetadataCredentials.parse(getApplication<Application>().getSharedPreferences("metadata", android.content.Context.MODE_PRIVATE).getString("key", "").orEmpty())?.size ?: 0,
             hasPersonalKey = !getApplication<Application>().getSharedPreferences("metadata", android.content.Context.MODE_PRIVATE).getString("key", null).isNullOrBlank(),
             isDomainValidationEnabled = preferences.isDomainValidationEnabled,
@@ -78,6 +82,18 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             totalRedirectsBlocked = statistics.totalRedirectsBlocked,
             exemptSources = preferences.getExemptSources()
         )
+    }
+
+    fun setPointerSpeed(speed: String) {
+        playback.pointerSpeed = speed
+        refreshState()
+    }
+
+    fun cyclePointerSpeed() {
+        val speeds = listOf("Precision", "Slow", "Normal", "Fast")
+        val currentIdx = speeds.indexOf(_uiState.value.pointerSpeed).coerceAtLeast(0)
+        val next = speeds[(currentIdx + 1) % speeds.size]
+        setPointerSpeed(next)
     }
 
     fun toggleDomainValidation() {
@@ -187,6 +203,63 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 com.nowshowing.tv.privacy.FilterUpdateResult.PARTIAL -> "One list updated; the other failed. Its known-good rules remain active. Retry later."
                 com.nowshowing.tv.privacy.FilterUpdateResult.FAILED -> "Update failed. Known-good rules remain active. Check the connection and retry."
             })
+        }
+    }
+
+    fun exportLibrary(onResult: (String?) -> Unit = {}) {
+        if (_uiState.value.isExportingLibrary) return
+        _uiState.value = _uiState.value.copy(isExportingLibrary = true, maintenanceMessage = "Exporting library to JSON…")
+        viewModelScope.launch {
+            val json = runCatching { MediaRepository(getApplication()).exportLibraryJson() }.getOrNull()
+            _uiState.value = _uiState.value.copy(
+                isExportingLibrary = false,
+                maintenanceMessage = if (json != null) "Library backup ready (${json.length} characters)." else "Failed to export library backup."
+            )
+            onResult(json)
+        }
+    }
+
+    fun importLibrary(json: String, onResult: (Boolean, String) -> Unit = { _, _ -> }) {
+        if (_uiState.value.isImportingLibrary) return
+        _uiState.value = _uiState.value.copy(isImportingLibrary = true, maintenanceMessage = "Importing library from JSON…")
+        viewModelScope.launch {
+            try {
+                val result = MediaRepository(getApplication()).importLibraryJson(json)
+                val msg = "Imported ${result.watchlistCount} watchlist titles and ${result.watchedEpisodesCount} watched episodes."
+                _uiState.value = _uiState.value.copy(isImportingLibrary = false, maintenanceMessage = msg)
+                onResult(true, msg)
+            } catch (e: Exception) {
+                val msg = "Import failed: ${e.message ?: "Invalid JSON"}"
+                _uiState.value = _uiState.value.copy(isImportingLibrary = false, maintenanceMessage = msg)
+                onResult(false, msg)
+            }
+        }
+    }
+
+    fun resetAppData(keepWatchlist: Boolean, onComplete: () -> Unit = {}) {
+        viewModelScope.launch {
+            MediaRepository(getApplication()).resetAppData(keepWatchlist)
+            clearCaches()
+            refreshState()
+            val msg = if (keepWatchlist) "App data reset. Watchlist was preserved." else "All app data, history, and watchlist wiped."
+            _uiState.value = _uiState.value.copy(maintenanceMessage = msg)
+            onComplete()
+        }
+    }
+
+    fun testMetadataKey(key: String, onResult: (Boolean, String) -> Unit) {
+        val trimmed = key.trim()
+        if (trimmed.isBlank() || trimmed.length < 6) {
+            onResult(false, "Key must be at least 6 characters.")
+            return
+        }
+        viewModelScope.launch {
+            val result = MediaRepository(getApplication()).testMetadataKey(trimmed)
+            result.onSuccess { msg ->
+                onResult(true, msg)
+            }.onFailure { err ->
+                onResult(false, err.message ?: "Key test failed")
+            }
         }
     }
 }

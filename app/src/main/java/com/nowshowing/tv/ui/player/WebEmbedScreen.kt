@@ -24,9 +24,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -55,7 +57,7 @@ internal fun WebEmbedScreen(state: PlayerUiState, viewModel: PlayerViewModel, on
     var showHint by remember(state.webEmbedUrl) { mutableStateOf(!seenHelp) }
     LaunchedEffect(state.webEmbedUrl, seenHelp) {
         showHint = !seenHelp
-        if (!seenHelp) { kotlinx.coroutines.delay(8_000); showHint = false }
+        if (!seenHelp) { kotlinx.coroutines.delay(4_000); showHint = false }
     }
     var failure by remember(state.webEmbedUrl) { mutableStateOf<String?>(null) }
     var loading by remember(state.webEmbedUrl) { mutableStateOf(true) }
@@ -241,14 +243,39 @@ internal fun WebEmbedScreen(state: PlayerUiState, viewModel: PlayerViewModel, on
         }
 
         if (!menu && showHint) {
-            Text("Arrows move pointer · OK clicks · Back opens controls and help", color = TextPrimary,
-                fontSize = 16.sp, modifier = Modifier.align(Alignment.BottomCenter).background(BgDark).padding(16.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 28.dp),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                Text(
+                    text = "Arrows move pointer · OK clicks · Back opens controls",
+                    color = NsTextPrimary,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(NsShape.cardRadius))
+                        .background(NsSurface2.copy(alpha = 0.88f))
+                        .border(1.dp, NsSeparator, RoundedCornerShape(NsShape.cardRadius))
+                        .padding(horizontal = 20.dp, vertical = 10.dp)
+                )
+            }
         }
         if (loading && !menu) {
-            Row(Modifier.align(Alignment.TopEnd).background(BgDark).padding(20.dp),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                CircularProgressIndicator(Modifier.size(24.dp), color = AccentCyan)
-                Text("Opening ${state.currentSource.name} · Back for controls", color = TextPrimary, fontSize = 16.sp)
+            Row(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(24.dp)
+                    .clip(RoundedCornerShape(NsShape.smallControlRadius))
+                    .background(NsSurface2.copy(alpha = 0.90f))
+                    .border(1.dp, NsSeparator, RoundedCornerShape(NsShape.smallControlRadius))
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                CircularProgressIndicator(Modifier.size(18.dp), color = NsAccent, strokeWidth = 2.dp)
+                Text("Opening ${state.currentSource.name}…", color = NsTextPrimary, fontSize = 14.sp)
             }
         }
         switchingIndicator?.let { indicatorText ->
@@ -547,8 +574,21 @@ internal class EmbedHost(
 
 @SuppressLint("ViewConstructor")
 internal class PointerWebView(context: Context) : WebView(context) {
-    private val dot = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = android.graphics.Color.WHITE }
-    private val outline = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = android.graphics.Color.BLACK }
+    private val playbackPrefs = com.nowshowing.tv.playback.PlaybackPreferences(context)
+    private val ringOuter = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 3f * resources.displayMetrics.density
+        color = android.graphics.Color.argb(160, 0, 0, 0)
+    }
+    private val ringInner = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 2f * resources.displayMetrics.density
+        color = android.graphics.Color.argb(230, 245, 245, 247)
+    }
+    private val centerDot = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = android.graphics.Color.argb(180, 10, 132, 255)
+    }
     private var px = 0f
     private var py = 0f
     private var pointerVisible = false
@@ -558,7 +598,8 @@ internal class PointerWebView(context: Context) : WebView(context) {
         px = w / 2f; py = h / 2f
     }
     fun pointerKey(code: Int, repeatCount: Int = 0, target: View = this) {
-        val step = PointerMotion.stepDp(repeatCount) * resources.displayMetrics.density
+        val speedMult = playbackPrefs.pointerSpeedMultiplier
+        val step = PointerMotion.stepDp(repeatCount, speedMult) * resources.displayMetrics.density
         when (code) {
             KeyEvent.KEYCODE_DPAD_LEFT -> px -= step
             KeyEvent.KEYCODE_DPAD_RIGHT -> px += step
@@ -582,7 +623,7 @@ internal class PointerWebView(context: Context) : WebView(context) {
         invalidate()
         onPointerChanged()
         removeCallbacks(hidePointer)
-        postDelayed(hidePointer, 2500)
+        postDelayed(hidePointer, 3500)
     }
     private val hidePointer = Runnable { pointerVisible = false; invalidate(); onPointerChanged() }
     override fun onDraw(canvas: Canvas) {
@@ -593,9 +634,11 @@ internal class PointerWebView(context: Context) : WebView(context) {
         if (pointerVisible) {
             val x = px + if (includeScroll) scrollX else 0
             val y = py + if (includeScroll) scrollY else 0
-            val radius = 6f * resources.displayMetrics.density
-            canvas.drawCircle(x, y, radius + 2f, outline)
-            canvas.drawCircle(x, y, radius, dot)
+            val radius = 8f * resources.displayMetrics.density
+            val dotRadius = 1.8f * resources.displayMetrics.density
+            canvas.drawCircle(x, y, radius, ringOuter)
+            canvas.drawCircle(x, y, radius, ringInner)
+            canvas.drawCircle(x, y, dotRadius, centerDot)
         }
     }
     override fun onDetachedFromWindow() {

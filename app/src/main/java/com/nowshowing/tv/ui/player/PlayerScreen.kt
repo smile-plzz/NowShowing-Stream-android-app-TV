@@ -77,14 +77,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.nowshowing.tv.domain.source.SourceRegistry
 import com.nowshowing.tv.domain.source.VideoSource
-import com.nowshowing.tv.ui.theme.AccentCyan
-import com.nowshowing.tv.ui.theme.AccentGold
-import com.nowshowing.tv.ui.theme.FocusBorder
-import com.nowshowing.tv.ui.theme.FocusGlow
-import com.nowshowing.tv.ui.theme.SurfaceDark
-import com.nowshowing.tv.ui.theme.SurfaceVariant
-import com.nowshowing.tv.ui.theme.TextMuted
-import com.nowshowing.tv.ui.theme.TextPrimary
+import com.nowshowing.tv.ui.theme.*
 import kotlinx.coroutines.delay
 
 @Composable
@@ -1107,14 +1100,14 @@ internal fun TvPlayerActionButton(
 
     val bg = when {
         !enabled -> SurfaceDark.copy(alpha = 0.5f)
-        isFocused -> FocusBorder
-        isAccent -> AccentCyan.copy(alpha = 0.2f)
+        isFocused -> if (isAccent) AccentCyan else SurfaceVariant
+        isAccent -> AccentCyan.copy(alpha = 0.25f)
         else -> SurfaceDark
     }
 
     val textColor = when {
         !enabled -> TextMuted
-        isFocused -> Color.Black
+        isFocused -> TextPrimary
         isAccent -> AccentCyan
         else -> TextPrimary
     }
@@ -1124,15 +1117,15 @@ internal fun TvPlayerActionButton(
             .scale(scale)
             .heightIn(min = 48.dp)
             .shadow(
-                elevation = if (isFocused && enabled) 12.dp else 2.dp,
+                elevation = if (isFocused && enabled) 10.dp else 0.dp,
                 shape = RoundedCornerShape(10.dp),
-                spotColor = if (isFocused && enabled) FocusGlow else Color.Transparent
+                spotColor = NsFocusShadow
             )
             .clip(RoundedCornerShape(10.dp))
             .background(bg)
             .border(
-                width = if (isFocused && enabled) 2.dp else 1.dp,
-                color = if (isFocused && enabled) Color.White else if (isAccent) AccentCyan.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.12f),
+                width = if (isFocused && enabled) 3.dp else 1.dp,
+                color = if (isFocused && enabled) FocusBorder else if (isAccent) AccentCyan.copy(alpha = 0.4f) else CardBorder,
                 shape = RoundedCornerShape(10.dp)
             )
             .clickable(enabled = enabled, interactionSource = interactionSource, indication = null, onClick = onClick)

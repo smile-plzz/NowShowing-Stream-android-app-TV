@@ -360,6 +360,10 @@ class MediaRepository(
         db.removeFromWatchlist(imdbId)
     }
 
+    suspend fun addToWatchlist(item: WatchlistItem) = withContext(Dispatchers.IO) {
+        db.addToWatchlist(item)
+    }
+
     suspend fun getContinueWatching(): List<ContinueItem> = withContext(Dispatchers.IO) {
         db.getContinueWatching()
     }
@@ -404,5 +408,63 @@ class MediaRepository(
 
     suspend fun clearSearchHistory() = withContext(Dispatchers.IO) {
         db.clearSearchHistory()
+    }
+
+    // =========================================================================
+    // Watched Episodes & Library Backup
+    // =========================================================================
+
+    suspend fun isEpisodeWatched(imdbId: String, season: Int, episode: Int): Boolean = withContext(Dispatchers.IO) {
+        db.isEpisodeWatched(imdbId, season, episode)
+    }
+
+    suspend fun getWatchedEpisodes(imdbId: String): Set<Pair<Int, Int>> = withContext(Dispatchers.IO) {
+        db.getWatchedEpisodes(imdbId)
+    }
+
+    suspend fun setEpisodeWatched(imdbId: String, season: Int, episode: Int, watched: Boolean) = withContext(Dispatchers.IO) {
+        db.setEpisodeWatched(imdbId, season, episode, watched)
+    }
+
+    suspend fun markPreviousEpisodesWatched(
+        imdbId: String,
+        upToSeason: Int,
+        upToEpisode: Int,
+        seasonEpisodeCounts: Map<Int, Int> = emptyMap()
+    ) = withContext(Dispatchers.IO) {
+        db.markPreviousEpisodesWatched(imdbId, upToSeason, upToEpisode, seasonEpisodeCounts)
+    }
+
+    suspend fun exportLibraryJson(): String = withContext(Dispatchers.IO) {
+        val backup = db.exportLibrary()
+        gson.toJson(backup)
+    }
+
+    suspend fun importLibraryJson(jsonString: String): com.nowshowing.tv.data.db.LibraryImportResult = withContext(Dispatchers.IO) {
+        if (jsonString.length > 5 * 1024 * 1024) throw IllegalArgumentException("Backup file exceeds 5MB limit")
+        val backup = runCatching { gson.fromJson(jsonString, com.nowshowing.tv.data.db.LibraryBackup::class.java) }.getOrNull()
+            ?: throw IllegalArgumentException("Malformed library backup JSON")
+        if (backup.version != 1) throw IllegalArgumentException("Unsupported backup version: ${backup.version}")
+        db.importLibrary(backup)
+    }
+
+    suspend fun resetAppData(keepWatchlist: Boolean) = withContext(Dispatchers.IO) {
+        db.resetData(keepWatchlist)
+        clearMetadataCache()
+    }
+
+    suspend fun testMetadataKey(key: String): Result<String> = withContext(Dispatchers.IO) {
+        val trimmed = key.trim()
+        if (trimmed.isBlank()) return@withContext Result.failure(IllegalArgumentException("Key cannot be empty"))
+        try {
+            val res = api.getDetails(apiKey = trimmed, imdbId = "tt0111161")
+            if (res.title.isNotBlank() && res.title != "N/A") {
+                Result.success("Key verified! Resolved \"${res.title}\" (${res.year})")
+            } else {
+                Result.failure(IllegalStateException("OMDb rejected key: title not returned"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }
