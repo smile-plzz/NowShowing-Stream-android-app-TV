@@ -63,15 +63,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nowshowing.tv.ui.common.TvFocusableCard
-import com.nowshowing.tv.ui.common.TvTopBar
-import com.nowshowing.tv.ui.theme.AccentCyan
-import com.nowshowing.tv.ui.theme.BgDark
-import com.nowshowing.tv.ui.theme.FocusBorder
-import com.nowshowing.tv.ui.theme.SurfaceDark
-import com.nowshowing.tv.ui.theme.SurfaceVariant
-import com.nowshowing.tv.ui.theme.TextMuted
-import com.nowshowing.tv.ui.theme.TextPrimary
+import com.nowshowing.tv.ui.common.*
+import com.nowshowing.tv.ui.theme.*
 
 @Composable
 fun SearchScreen(
@@ -225,90 +218,64 @@ fun SearchScreen(
             ) {
                 if (uiState.isLoading && uiState.results.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = AccentCyan)
+                        CircularProgressIndicator(color = NsAccent)
                     }
                 } else if (!uiState.errorMessage.isNullOrBlank() && uiState.results.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(uiState.errorMessage.orEmpty(), color = TextMuted, fontSize = 16.sp)
-                            com.nowshowing.tv.ui.player.TvPlayerActionButton("Retry search", null) { viewModel.retrySearch() }
-                            com.nowshowing.tv.ui.player.TvPlayerActionButton("Metadata settings", null) { onNavigate("settings") }
-                        }
+                        NsStateMessage(
+                            title = "Search Service Unavailable",
+                            message = uiState.errorMessage.orEmpty(),
+                            actionLabel = "Retry Search",
+                            onAction = { viewModel.retrySearch() },
+                            isError = true
+                        )
                     }
                 } else if (uiState.results.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
-                            modifier = Modifier.padding(24.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(56.dp)
-                                    .clip(RoundedCornerShape(28.dp))
-                                    .background(SurfaceDark)
-                                    .border(1.dp, CardBorder, RoundedCornerShape(28.dp)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Search,
-                                    contentDescription = null,
-                                    tint = AccentCyan,
-                                    modifier = Modifier.size(28.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(14.dp))
-                            Text(
-                                text = if (uiState.query.isBlank()) "Search Movies & Series" else "No matching titles found",
-                                color = TextPrimary,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = if (uiState.query.isBlank()) "Type a title on the on-screen keyboard or press the mic button for voice search." else "Try searching with different title keywords or release years.",
-                                color = TextMuted,
-                                fontSize = 13.sp,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                modifier = Modifier.widthIn(max = 380.dp)
-                            )
-                        }
+                        val isQueryActive = uiState.resultQuery.isNotBlank() || uiState.query.isNotBlank()
+                        val activeQ = uiState.resultQuery.ifBlank { uiState.query }
+                        NsStateMessage(
+                            title = if (isQueryActive) "No results found for \"$activeQ\"" else "Search Movies & TV Series",
+                            message = if (isQueryActive) "No titles matched your query. Check spelling or try searching with a release year." else "Type a title using the on-screen keyboard or press the microphone for voice search.",
+                            icon = Icons.Default.Search
+                        )
                     }
                 } else {
                     Column(Modifier.fillMaxSize()) {
-                    uiState.errorMessage?.let {
-                        Text(it, color = TextMuted, fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
-                        com.nowshowing.tv.ui.player.TvPlayerActionButton("Retry search", null, enabled = !uiState.isLoading) { viewModel.retrySearch() }
-                    }
-                    Text(
-                        text = "${uiState.results.size} of ${uiState.totalResults} results · ${uiState.resultQuery}",
-                        color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                    LazyVerticalGrid(
-                    state = gridState,
-                        columns = GridCells.Adaptive(minSize = 135.dp),
-                        contentPadding = PaddingValues(bottom = 32.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        items(uiState.results, key = { it.imdbID }) { movie ->
-                            TvFocusableCard(
-                                focusKey = "search:${movie.imdbID}",
-                                title = movie.title,
-                                posterUrl = if (movie.poster != "N/A") movie.poster else "",
-                                year = movie.year,
-                                badge = if (movie.type == "series") "Series" else null,
-                                width = 135.dp,
-                                height = 200.dp,
-                                onClick = { onTitleClick(movie.imdbID, movie.type) }
-                            )
+                        uiState.errorMessage?.let {
+                            Text(it, color = NsTextSecondary, fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
+                            com.nowshowing.tv.ui.player.TvPlayerActionButton("Retry search", null, enabled = !uiState.isLoading) { viewModel.retrySearch() }
                         }
-                        if (uiState.results.size < uiState.totalResults) item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
-                            com.nowshowing.tv.ui.player.TvPlayerActionButton(if (uiState.isLoading) "Loading…" else "Load more", null, enabled = !uiState.isLoading) { viewModel.executeSearch(reset = false) }
+                        Text(
+                            text = "${uiState.results.size} of ${uiState.totalResults} results · ${uiState.resultQuery}",
+                            style = NsTypography.Caption,
+                            color = NsTextSecondary,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        LazyVerticalGrid(
+                            state = gridState,
+                            columns = GridCells.Adaptive(minSize = 145.dp),
+                            contentPadding = PaddingValues(bottom = 32.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            items(uiState.results, key = { it.imdbID }) { movie ->
+                                NsPosterCard(
+                                    focusKey = "search:${movie.imdbID}",
+                                    title = movie.title,
+                                    posterUrl = if (movie.poster != "N/A") movie.poster else "",
+                                    year = movie.year,
+                                    badge = if (movie.type == "series") "Series" else null,
+                                    width = 145.dp,
+                                    height = 218.dp,
+                                    onClick = { onTitleClick(movie.imdbID, movie.type) }
+                                )
+                            }
+                            if (uiState.results.size < uiState.totalResults) item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
+                                com.nowshowing.tv.ui.player.TvPlayerActionButton(if (uiState.isLoading) "Loading…" else "Load more", null, enabled = !uiState.isLoading) { viewModel.executeSearch(reset = false) }
+                            }
                         }
-
-                    }
                     }
                 }
             }
@@ -327,20 +294,20 @@ private fun FilterChip(
 
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(if (isFocused) FocusBorder else if (isSelected) SurfaceVariant else SurfaceDark)
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (isFocused) NsSurface2 else if (isSelected) NsSurface2.copy(alpha = 0.8f) else NsSurface1)
             .border(
-                width = if (isFocused) 2.dp else if (isSelected) 1.dp else 0.dp,
-                color = if (isFocused) Color.White else if (isSelected) AccentCyan else Color.Transparent,
-                shape = RoundedCornerShape(6.dp)
+                width = if (isFocused) 2.dp else 1.dp,
+                color = if (isFocused) NsAccent else if (isSelected) NsAccent.copy(alpha = 0.6f) else NsSeparator,
+                shape = RoundedCornerShape(8.dp)
             )
             .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 6.dp)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
     ) {
         Text(
             text = label,
-            color = if (isFocused) Color.Black else if (isSelected) AccentCyan else TextMuted,
-            fontSize = 12.sp,
+            color = if (isFocused || isSelected) NsTextPrimary else NsTextSecondary,
+            fontSize = 14.sp,
             fontWeight = if (isSelected || isFocused) FontWeight.Bold else FontWeight.Medium
         )
     }
@@ -400,7 +367,7 @@ private fun KeyButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
     val scale by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (isFocused) 1.10f else 1.0f,
+        targetValue = if (isFocused) 1.08f else 1.0f,
         animationSpec = androidx.compose.animation.core.tween(120, easing = androidx.compose.animation.core.FastOutSlowInEasing),
         label = "key_scale"
     )
@@ -408,17 +375,17 @@ private fun KeyButton(
     Box(
         modifier = modifier
             .scale(scale)
-            .height(36.dp)
+            .height(38.dp)
             .shadow(
                 elevation = if (isFocused) 8.dp else 0.dp,
                 shape = RoundedCornerShape(8.dp),
-                spotColor = if (isFocused) FocusGlow else Color.Transparent
+                spotColor = NsFocusShadow
             )
             .clip(RoundedCornerShape(8.dp))
-            .background(if (isFocused) FocusBorder else SurfaceDark)
+            .background(if (isFocused) NsSurface2 else NsSurface1)
             .border(
                 width = if (isFocused) 2.dp else 1.dp,
-                color = if (isFocused) Color.White else Color.White.copy(alpha = 0.08f),
+                color = if (isFocused) NsAccent else NsSeparator,
                 shape = RoundedCornerShape(8.dp)
             )
             .clickable(interactionSource = interactionSource, indication = null, onClick = onClick),
@@ -426,8 +393,8 @@ private fun KeyButton(
     ) {
         Text(
             text = text,
-            color = if (isFocused) Color.Black else TextPrimary,
-            fontSize = 13.sp,
+            color = if (isFocused) NsAccent else NsTextPrimary,
+            fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center
         )
@@ -443,7 +410,7 @@ private fun ActionKeyButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
     val scale by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (isFocused) 1.08f else 1.0f,
+        targetValue = if (isFocused) 1.06f else 1.0f,
         animationSpec = androidx.compose.animation.core.tween(120, easing = androidx.compose.animation.core.FastOutSlowInEasing),
         label = "action_key_scale"
     )
@@ -451,17 +418,17 @@ private fun ActionKeyButton(
     Box(
         modifier = modifier
             .scale(scale)
-            .height(36.dp)
+            .height(38.dp)
             .shadow(
                 elevation = if (isFocused) 8.dp else 0.dp,
                 shape = RoundedCornerShape(8.dp),
-                spotColor = if (isFocused) FocusGlow else Color.Transparent
+                spotColor = NsFocusShadow
             )
             .clip(RoundedCornerShape(8.dp))
-            .background(if (isFocused) FocusBorder else SurfaceVariant)
+            .background(if (isFocused) NsSurface2 else NsSurface1)
             .border(
                 width = if (isFocused) 2.dp else 1.dp,
-                color = if (isFocused) Color.White else Color.Transparent,
+                color = if (isFocused) NsAccent else NsSeparator,
                 shape = RoundedCornerShape(8.dp)
             )
             .clickable(interactionSource = interactionSource, indication = null, onClick = onClick),
@@ -469,8 +436,8 @@ private fun ActionKeyButton(
     ) {
         Text(
             text = text,
-            color = if (isFocused) Color.Black else TextPrimary,
-            fontSize = 11.sp,
+            color = if (isFocused) NsAccent else NsTextPrimary,
+            fontSize = 12.sp,
             fontWeight = FontWeight.Bold
         )
     }
@@ -488,13 +455,19 @@ private fun ActionIconButton(
     val isFocused by interactionSource.collectIsFocusedAsState()
 
     val bg = when {
-        isFocused -> FocusBorder
-        isAccent -> AccentCyan
-        else -> SurfaceVariant
+        isAccent -> if (isFocused) NsAccent.copy(alpha = 0.9f) else NsAccent
+        isFocused -> NsSurface2
+        else -> NsSurface1
+    }
+
+    val iconTint = when {
+        isAccent -> NsTextPrimary
+        isFocused -> NsAccent
+        else -> NsTextSecondary
     }
 
     val scale by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (isFocused) 1.08f else 1.0f,
+        targetValue = if (isFocused) 1.06f else 1.0f,
         animationSpec = androidx.compose.animation.core.tween(120, easing = androidx.compose.animation.core.FastOutSlowInEasing),
         label = "action_icon_scale"
     )
@@ -502,17 +475,17 @@ private fun ActionIconButton(
     Box(
         modifier = modifier
             .scale(scale)
-            .height(36.dp)
+            .height(38.dp)
             .shadow(
                 elevation = if (isFocused) 8.dp else 0.dp,
                 shape = RoundedCornerShape(8.dp),
-                spotColor = if (isFocused) FocusGlow else Color.Transparent
+                spotColor = NsFocusShadow
             )
             .clip(RoundedCornerShape(8.dp))
             .background(bg)
             .border(
-                width = if (isFocused) 2.dp else 0.dp,
-                color = if (isFocused) Color.White else Color.Transparent,
+                width = if (isFocused) 2.dp else 1.dp,
+                color = if (isFocused) NsAccent else NsSeparator,
                 shape = RoundedCornerShape(8.dp)
             )
             .clickable(interactionSource = interactionSource, indication = null, onClick = onClick),
@@ -521,8 +494,8 @@ private fun ActionIconButton(
         Icon(
             imageVector = icon,
             contentDescription = contentDesc,
-            tint = if (isFocused || isAccent) Color.Black else TextPrimary,
-            modifier = Modifier.size(16.dp)
+            tint = iconTint,
+            modifier = Modifier.size(18.dp)
         )
     }
 }
@@ -537,25 +510,23 @@ private fun RecentSearchChip(
 
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(if (isFocused) FocusBorder else SurfaceDark)
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (isFocused) NsSurface2 else NsSurface1)
             .border(
                 width = if (isFocused) 2.dp else 1.dp,
-                color = if (isFocused) Color.White else Color.White.copy(alpha = 0.08f),
-                shape = RoundedCornerShape(6.dp)
+                color = if (isFocused) NsAccent else NsSeparator,
+                shape = RoundedCornerShape(8.dp)
             )
             .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 6.dp)
+            .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
         Text(
             text = query,
-            color = if (isFocused) Color.Black else TextPrimary,
-            fontSize = 11.sp
+            color = if (isFocused) NsTextPrimary else NsTextSecondary,
+            fontSize = 13.sp
         )
     }
 }
-
-
 
 @Composable
 private fun VoiceSearchButton(
@@ -569,12 +540,12 @@ private fun VoiceSearchButton(
         contentAlignment = Alignment.Center,
         modifier = modifier
             .size(56.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(if (isFocused) FocusBorder else SurfaceDark)
+            .clip(RoundedCornerShape(NsShape.smallControlRadius))
+            .background(if (isFocused) NsSurface2 else NsSurface1)
             .border(
                 width = if (isFocused) 2.dp else 1.dp,
-                color = if (isFocused) Color.White else SurfaceVariant,
-                shape = RoundedCornerShape(8.dp)
+                color = if (isFocused) NsAccent else NsSeparator,
+                shape = RoundedCornerShape(NsShape.smallControlRadius)
             )
             .focusable(interactionSource = interactionSource)
             .clickable(
@@ -586,7 +557,7 @@ private fun VoiceSearchButton(
         Icon(
             imageVector = Icons.Default.Mic,
             contentDescription = "Voice search",
-            tint = if (isFocused) Color.Black else AccentCyan,
+            tint = if (isFocused) NsAccent else NsTextPrimary,
             modifier = Modifier.size(24.dp)
         )
     }

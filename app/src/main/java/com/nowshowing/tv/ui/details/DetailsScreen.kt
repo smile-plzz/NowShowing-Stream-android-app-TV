@@ -26,6 +26,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Source
 import androidx.compose.material.icons.filled.Star
@@ -59,16 +62,7 @@ import coil.request.ImageRequest
 import com.nowshowing.tv.domain.source.SourceRegistry
 import com.nowshowing.tv.ui.common.TvContentRow
 import com.nowshowing.tv.ui.common.TvTopBar
-import com.nowshowing.tv.ui.theme.AccentCyan
-import com.nowshowing.tv.ui.theme.AccentGold
-import com.nowshowing.tv.ui.theme.BgDark
-import com.nowshowing.tv.ui.theme.FocusBorder
-import com.nowshowing.tv.ui.theme.FocusGlow
-import com.nowshowing.tv.ui.theme.SurfaceDark
-import com.nowshowing.tv.ui.theme.SurfaceVariant
-import com.nowshowing.tv.ui.theme.TextMuted
-import com.nowshowing.tv.ui.theme.TextPrimary
-import com.nowshowing.tv.ui.theme.TextSecondary
+import com.nowshowing.tv.ui.theme.*
 
 @Composable
 fun DetailsScreen(
@@ -320,6 +314,15 @@ fun DetailsScreen(
                                             onClick = { viewModel.toggleWatchlist() }
                                         )
 
+                                        // Watched Toggle
+                                        DetailActionButton(
+                                            label = if (uiState.isWatched) "Watched" else "Mark Watched",
+                                            icon = Icons.Default.Check,
+                                            isPrimary = false,
+                                            isWatched = uiState.isWatched,
+                                            onClick = { viewModel.toggleTitleWatched() }
+                                        )
+
                                         // Source Selector Trigger
                                         DetailActionButton(
                                             label = "Source: ${uiState.selectedSource.name}",
@@ -416,19 +419,37 @@ fun DetailsScreen(
                                         .fillMaxWidth()
                                         .padding(horizontal = 48.dp, vertical = 8.dp)
                                 ) {
-                                    Text(
-                                        text = "Season ${uiState.selectedSeason} Episodes",
-                                        color = TextPrimary,
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "Season ${uiState.selectedSeason} Episodes",
+                                            color = NsTextPrimary,
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        if (uiState.selectedEpisode > 0) {
+                                            DetailActionButton(
+                                                label = "Mark up to E${uiState.selectedEpisode} Watched",
+                                                icon = Icons.Default.DoneAll,
+                                                isPrimary = false,
+                                                onClick = {
+                                                    viewModel.markPreviousEpisodesWatched(uiState.selectedSeason, uiState.selectedEpisode)
+                                                }
+                                            )
+                                        }
+                                    }
                                     Spacer(modifier = Modifier.height(10.dp))
                                     LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                        items(uiState.episodes) { ep ->
+                                        items(items = uiState.episodes, key = { ep -> ep.imdbID.ifBlank { "${uiState.selectedSeason}_${ep.episode}" } }) { ep ->
                                             val epNum = ep.episode.toIntOrNull() ?: 1
+                                            val isEpWatched = uiState.watchedEpisodes.contains(Pair(uiState.selectedSeason, epNum))
                                             EpisodeCard(
                                                 episode = ep,
                                                 isSelected = uiState.selectedEpisode == epNum,
+                                                isWatched = isEpWatched,
                                                 onClick = {
                                                     viewModel.selectEpisode(epNum)
                                                     onPlay(
@@ -515,6 +536,7 @@ private fun DetailActionButton(
     label: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     isPrimary: Boolean,
+    isWatched: Boolean = false,
     onClick: () -> Unit
 ) {
     val (actionFocus, rememberAction) = rememberReturnFocusRequester(if (isPrimary) "details-action:play" else "details-action:$label")
@@ -527,39 +549,41 @@ private fun DetailActionButton(
     )
 
     val bg = when {
-        isFocused -> FocusBorder
-        isPrimary -> AccentCyan
-        else -> SurfaceVariant
+        isPrimary -> if (isFocused) NsAccent.copy(alpha = 0.9f) else NsAccent
+        isFocused -> NsSurface2
+        isWatched -> NsSurface2.copy(alpha = 0.8f)
+        else -> NsSurface1
     }
 
     val contentColor = when {
-        isFocused || isPrimary -> Color.Black
-        else -> TextPrimary
+        isPrimary || isFocused -> NsTextPrimary
+        isWatched -> NsAccent
+        else -> NsTextSecondary
     }
 
     Row(
         modifier = Modifier
             .scale(scale)
             .shadow(
-                elevation = if (isFocused) 12.dp else 2.dp,
-                shape = RoundedCornerShape(10.dp),
-                spotColor = if (isFocused) FocusGlow else Color.Transparent
+                elevation = if (isFocused) 10.dp else 0.dp,
+                shape = RoundedCornerShape(NsShape.smallControlRadius),
+                spotColor = NsFocusShadow
             )
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(NsShape.smallControlRadius))
             .background(bg)
             .border(
-                width = if (isFocused) 2.dp else 0.dp,
-                color = if (isFocused) Color.White else Color.Transparent,
-                shape = RoundedCornerShape(10.dp)
+                width = if (isFocused) 3.dp else 1.dp,
+                color = if (isFocused) NsAccent else NsSeparator,
+                shape = RoundedCornerShape(NsShape.smallControlRadius)
             )
             .focusRequester(actionFocus)
             .clickable(interactionSource = interactionSource, indication = null, onClick = { rememberAction(); onClick() })
-            .padding(horizontal = 20.dp, vertical = 11.dp),
+            .padding(horizontal = 20.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(imageVector = icon, contentDescription = label, tint = contentColor, modifier = Modifier.size(16.dp))
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(text = label, color = contentColor, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Icon(imageVector = icon, contentDescription = label, tint = contentColor, modifier = Modifier.size(18.dp))
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(text = label, color = contentColor, fontSize = 15.sp, fontWeight = if (isPrimary || isFocused) FontWeight.SemiBold else FontWeight.Medium)
     }
 }
 
@@ -573,39 +597,42 @@ private fun SourceChip(
     val isFocused by interactionSource.collectIsFocusedAsState()
 
     val bg = when {
-        isFocused -> FocusBorder
-        isSelected -> AccentCyan.copy(alpha = 0.2f)
-        else -> SurfaceDark
+        isFocused -> NsSurface2
+        isSelected -> NsSurface2.copy(alpha = 0.8f)
+        else -> NsSurface1
     }
 
-    val textColor = if (isFocused) Color.Black else TextPrimary
+    val textColor = when {
+        isFocused || isSelected -> NsTextPrimary
+        else -> NsTextSecondary
+    }
 
     Row(
         modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
+            .clip(RoundedCornerShape(NsShape.smallControlRadius))
             .background(bg)
             .border(
-                width = if (isFocused) 2.dp else if (isSelected) 1.dp else 0.dp,
-                color = if (isFocused) Color.White else if (isSelected) AccentCyan else Color.Transparent,
-                shape = RoundedCornerShape(6.dp)
+                width = if (isFocused) 2.dp else if (isSelected) 1.5.dp else 1.dp,
+                color = if (isFocused) NsAccent else if (isSelected) NsAccent.copy(alpha = 0.6f) else NsSeparator,
+                shape = RoundedCornerShape(NsShape.smallControlRadius)
             )
             .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = source.name,
             color = textColor,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold
         )
         Spacer(modifier = Modifier.width(6.dp))
         val tagText = if (source.isNativeCompatible) "NATIVE" else "EMBED"
-        val tagColor = if (source.isNativeCompatible) AccentCyan else Color(0xFFFF6B6B)
+        val tagColor = if (source.isNativeCompatible) NsAccent else Color(0xFFFF6B6B)
         Text(
             text = "[$tagText]",
-            color = if (isFocused) Color.Black.copy(alpha = 0.8f) else tagColor,
-            fontSize = 10.sp,
+            color = tagColor,
+            fontSize = 11.sp,
             fontWeight = FontWeight.Bold
         )
     }
@@ -620,7 +647,7 @@ private fun SeasonPill(
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
     val scale by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (isFocused) 1.06f else 1.0f,
+        targetValue = if (isFocused) 1.05f else 1.0f,
         animationSpec = androidx.compose.animation.core.tween(150, easing = androidx.compose.animation.core.FastOutSlowInEasing),
         label = "season_pill_scale"
     )
@@ -629,25 +656,25 @@ private fun SeasonPill(
         modifier = Modifier
             .scale(scale)
             .shadow(
-                elevation = if (isFocused) 8.dp else 0.dp,
-                shape = RoundedCornerShape(10.dp),
-                spotColor = if (isFocused) FocusGlow else Color.Transparent
+                elevation = if (isFocused) 10.dp else 0.dp,
+                shape = RoundedCornerShape(NsShape.smallControlRadius),
+                spotColor = NsFocusShadow
             )
-            .clip(RoundedCornerShape(10.dp))
-            .background(if (isFocused) FocusBorder else if (isSelected) SurfaceVariant else SurfaceDark)
+            .clip(RoundedCornerShape(NsShape.smallControlRadius))
+            .background(if (isFocused) NsSurface2 else if (isSelected) NsSurface2.copy(alpha = 0.9f) else NsSurface1)
             .border(
-                width = if (isFocused) 2.dp else if (isSelected) 1.5.dp else 1.dp,
-                color = if (isFocused) Color.White else if (isSelected) AccentCyan else Color.White.copy(alpha = 0.08f),
-                shape = RoundedCornerShape(10.dp)
+                width = if (isFocused) 3.dp else if (isSelected) 1.5.dp else 1.dp,
+                color = if (isFocused) NsAccent else if (isSelected) NsAccent.copy(alpha = 0.7f) else NsSeparator,
+                shape = RoundedCornerShape(NsShape.smallControlRadius)
             )
             .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 9.dp)
+            .padding(horizontal = 20.dp, vertical = 10.dp)
     ) {
         Text(
             text = "Season $season",
-            color = if (isFocused) Color.Black else if (isSelected) AccentCyan else TextPrimary,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold
+            color = if (isFocused) NsTextPrimary else if (isSelected) NsAccent else NsTextSecondary,
+            fontSize = 15.sp,
+            fontWeight = if (isSelected || isFocused) FontWeight.Bold else FontWeight.Medium
         )
     }
 }
@@ -656,6 +683,7 @@ private fun SeasonPill(
 private fun EpisodeCard(
     episode: com.nowshowing.tv.data.model.OmdbEpisode,
     isSelected: Boolean,
+    isWatched: Boolean,
     onClick: () -> Unit
 ) {
     val (episodeFocus, rememberEpisode) = rememberReturnFocusRequester("episode:${episode.imdbID}")
@@ -670,19 +698,19 @@ private fun EpisodeCard(
 
     Column(
         modifier = Modifier
-            .width(190.dp)
+            .width(220.dp)
             .scale(scale)
             .shadow(
                 elevation = if (isFocused) 10.dp else 0.dp,
-                shape = RoundedCornerShape(10.dp),
-                spotColor = if (isFocused) FocusGlow else Color.Transparent
+                shape = RoundedCornerShape(NsShape.cardRadius),
+                spotColor = NsFocusShadow
             )
-            .clip(RoundedCornerShape(10.dp))
-            .background(if (isFocused) FocusBorder else SurfaceDark)
+            .clip(RoundedCornerShape(NsShape.cardRadius))
+            .background(if (isFocused) NsSurface2 else NsSurface1)
             .border(
-                width = if (isFocused) 2.dp else if (isSelected) 1.dp else 0.dp,
-                color = if (isFocused) Color.White else if (isSelected) AccentCyan else Color.Transparent,
-                shape = RoundedCornerShape(10.dp)
+                width = if (isFocused) 3.dp else if (isSelected) 1.5.dp else 1.dp,
+                color = if (isFocused) NsAccent else if (isSelected) NsAccent.copy(alpha = 0.6f) else NsSeparator,
+                shape = RoundedCornerShape(NsShape.cardRadius)
             )
             .focusRequester(episodeFocus)
             .clickable(interactionSource = interactionSource, indication = null, onClick = { rememberEpisode(); onClick() })
@@ -693,26 +721,37 @@ private fun EpisodeCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(
-                text = "EPISODE ${episode.episode}",
-                color = if (isFocused) Color.Black else AccentCyan,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "EPISODE ${episode.episode}",
+                    color = if (isFocused) NsAccent else NsTextSecondary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                if (isWatched) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = "Watched",
+                        tint = NsAccent,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
             if (!episode.imdbRating.isNullOrBlank() && episode.imdbRating != "N/A") {
                 Text(
                     text = "★ ${episode.imdbRating}",
-                    color = if (isFocused) Color.Black else AccentGold,
-                    fontSize = 10.sp,
+                    color = AccentGold,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
         }
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = episode.title,
-            color = if (isFocused) Color.Black else TextPrimary,
-            fontSize = 12.sp,
+            color = if (isFocused) NsTextPrimary else NsTextPrimary.copy(alpha = 0.9f),
+            fontSize = 14.sp,
             fontWeight = FontWeight.Medium,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis

@@ -73,15 +73,7 @@ import com.nowshowing.tv.data.model.OmdbTitleDetail
 import com.nowshowing.tv.ui.common.TvContentRow
 import com.nowshowing.tv.ui.common.TvFocusableCard
 import com.nowshowing.tv.ui.common.TvTopBar
-import com.nowshowing.tv.ui.theme.AccentCyan
-import com.nowshowing.tv.ui.theme.AccentGold
-import com.nowshowing.tv.ui.theme.BgDark
-import com.nowshowing.tv.ui.theme.FocusBorder
-import com.nowshowing.tv.ui.theme.FocusGlow
-import com.nowshowing.tv.ui.theme.SurfaceDark
-import com.nowshowing.tv.ui.theme.SurfaceVariant
-import com.nowshowing.tv.ui.theme.TextMuted
-import com.nowshowing.tv.ui.theme.TextPrimary
+import com.nowshowing.tv.ui.theme.*
 
 @Composable
 fun HomeScreen(
@@ -335,13 +327,14 @@ private fun HomeHeroBanner(
             ) {
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(AccentCyan)
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(NsAccent.copy(alpha = 0.2f))
+                        .border(1.dp, NsAccent.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
                 ) {
                     Text(
                         text = "FEATURED",
-                        color = Color.Black,
+                        color = NsAccent,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -431,30 +424,30 @@ fun TvActionButton(
     )
 
     val bg = when {
-        isFocused -> FocusBorder
-        isPrimary -> AccentCyan
-        else -> SurfaceVariant
+        isPrimary -> if (isFocused) NsAccent.copy(alpha = 0.9f) else NsAccent
+        isFocused -> NsSurface2
+        else -> NsSurface1
     }
 
     val contentColor = when {
-        isFocused || isPrimary -> Color.Black
-        else -> TextPrimary
+        isPrimary || isFocused -> NsTextPrimary
+        else -> NsTextSecondary
     }
 
     Row(
         modifier = Modifier
             .scale(scale)
             .shadow(
-                elevation = if (isFocused) 14.dp else 2.dp,
-                shape = RoundedCornerShape(10.dp),
-                spotColor = if (isFocused) FocusGlow else Color.Transparent
+                elevation = if (isFocused) 12.dp else 0.dp,
+                shape = RoundedCornerShape(NsShape.smallControlRadius),
+                spotColor = NsFocusShadow
             )
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(NsShape.smallControlRadius))
             .background(bg)
             .border(
-                width = if (isFocused) 2.dp else 0.dp,
-                color = if (isFocused) Color.White else Color.Transparent,
-                shape = RoundedCornerShape(10.dp)
+                width = if (isFocused) 3.dp else 1.dp,
+                color = if (isFocused) NsAccent else NsSeparator,
+                shape = RoundedCornerShape(NsShape.smallControlRadius)
             )
             .focusRequester(actionFocus)
             .clickable(
@@ -462,7 +455,7 @@ fun TvActionButton(
                 indication = null,
                 onClick = { rememberAction(); onClick() }
             )
-            .padding(horizontal = 22.dp, vertical = 11.dp),
+            .padding(horizontal = 22.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
@@ -471,12 +464,12 @@ fun TvActionButton(
             tint = contentColor,
             modifier = Modifier.size(18.dp)
         )
-        Spacer(modifier = Modifier.width(6.dp))
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = label,
             color = contentColor,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold
+            fontSize = 16.sp,
+            fontWeight = if (isPrimary || isFocused) FontWeight.SemiBold else FontWeight.Medium
         )
     }
 }
@@ -525,7 +518,7 @@ private fun MoodTeaserBanner(onClick: () -> Unit) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
     val scale by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (isFocused) 1.025f else 1.0f,
+        targetValue = if (isFocused) 1.03f else 1.0f,
         animationSpec = androidx.compose.animation.core.tween(150, easing = androidx.compose.animation.core.FastOutSlowInEasing),
         label = "mood_teaser_scale"
     )
@@ -536,16 +529,16 @@ private fun MoodTeaserBanner(onClick: () -> Unit) {
             .padding(horizontal = 48.dp, vertical = 10.dp)
             .scale(scale)
             .shadow(
-                elevation = if (isFocused) 10.dp else 0.dp,
-                shape = RoundedCornerShape(14.dp),
-                spotColor = if (isFocused) FocusGlow else Color.Transparent
+                elevation = if (isFocused) 12.dp else 0.dp,
+                shape = RoundedCornerShape(NsShape.cardRadius),
+                spotColor = NsFocusShadow
             )
-            .clip(RoundedCornerShape(14.dp))
-            .background(if (isFocused) SurfaceVariant else SurfaceDark)
+            .clip(RoundedCornerShape(NsShape.cardRadius))
+            .background(if (isFocused) NsSurface2 else NsSurface1)
             .border(
-                width = if (isFocused) 2.dp else 1.dp,
-                color = if (isFocused) FocusBorder else Color.White.copy(alpha = 0.08f),
-                shape = RoundedCornerShape(14.dp)
+                width = if (isFocused) 3.dp else 1.dp,
+                color = if (isFocused) NsAccent else NsSeparator,
+                shape = RoundedCornerShape(NsShape.cardRadius)
             )
             .clickable(
                 interactionSource = interactionSource,
@@ -562,14 +555,14 @@ private fun MoodTeaserBanner(onClick: () -> Unit) {
             Column {
                 Text(
                     text = "Not sure what to watch?",
-                    color = if (isFocused) AccentCyan else TextPrimary,
+                    color = if (isFocused) NsAccent else NsTextPrimary,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp
+                    fontSize = 16.sp
                 )
                 Text(
                     text = "Tell us your mood and we'll find precise genre-verified matches →",
-                    color = TextMuted,
-                    fontSize = 13.sp
+                    color = NsTextSecondary,
+                    fontSize = 14.sp
                 )
             }
         }

@@ -66,7 +66,7 @@ The `-debug.apk` download installs as **NowShowing Preview** (`com.nowshowing.tv
 
 ## Refinement and reliability
 
-The current source targets **1.6.0-rc.5 / 16004**. See [daily-use assessment and candidate checks](docs/DAILY_USE_ASSESSMENT.md). The versioned release and CI pages above are authoritative for downloadable artifacts. See [implementation status](docs/REFINEMENT_IMPLEMENTATION_STATUS.md) and [candidate notes](docs/RELEASE_NOTES_1.6.0-rc.3.md). Use only artifacts from successful builds; physical-TV acceptance remains pending.
+The current source targets **1.6.0-rc.5 / 16004**. See [daily-use assessment and candidate checks](docs/DAILY_USE_ASSESSMENT.md). The versioned release and CI pages above are authoritative for downloadable artifacts. See [implementation status](docs/REFINEMENT_IMPLEMENTATION_STATUS.md) and [candidate release notes](docs/releases/v1.6.0-rc.5.md). Use only artifacts from successful builds; physical-TV acceptance remains pending.
 
 
 

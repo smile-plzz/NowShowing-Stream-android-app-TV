@@ -1,4 +1,4 @@
-# Current playback contract — 1.5.1
+# Current playback contract — 1.6.0-rc.5
 
 Selected movies and series use existing provider HTML/iframe players in Android System WebView. Demo streams and launch routes are removed. Media3/resolver code remains internally tested but has no registered native source.
 

@@ -56,15 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
-import com.nowshowing.tv.ui.theme.AccentCyan
-import com.nowshowing.tv.ui.theme.AccentGold
-import com.nowshowing.tv.ui.theme.CardBorder
-import com.nowshowing.tv.ui.theme.FocusBorder
-import com.nowshowing.tv.ui.theme.FocusGlow
-import com.nowshowing.tv.ui.theme.SurfaceDark
-import com.nowshowing.tv.ui.theme.SurfaceVariant
-import com.nowshowing.tv.ui.theme.TextMuted
-import com.nowshowing.tv.ui.theme.TextPrimary
+import com.nowshowing.tv.ui.theme.*
 
 @Composable
 fun TvFocusableCard(
@@ -101,19 +93,18 @@ fun TvFocusableCard(
                 .width(width)
                 .height(height)
                 .shadow(
-                    elevation = if (isFocused) 14.dp else 2.dp,
-                    shape = RoundedCornerShape(12.dp),
-                    ambientColor = if (isFocused) FocusGlow else Color.Black,
-                    spotColor = if (isFocused) FocusGlow else Color.Black
+                    elevation = if (isFocused) 12.dp else 0.dp,
+                    shape = RoundedCornerShape(NsShape.cardRadius),
+                    spotColor = NsFocusShadow
                 )
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(NsShape.cardRadius))
                 .background(SurfaceDark)
                 .border(
                     BorderStroke(
-                        width = if (isFocused) 2.5.dp else 1.dp,
+                        width = if (isFocused) 3.dp else 1.dp,
                         color = if (isFocused) FocusBorder else CardBorder
                     ),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(NsShape.cardRadius)
                 )
                 .semantics { contentDescription = listOf(title, year, badge.orEmpty()).filter { it.isNotBlank() }.joinToString(", ") }
                 .focusRequester(returnRequester)

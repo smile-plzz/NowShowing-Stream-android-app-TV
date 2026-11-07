@@ -1,4 +1,23 @@
-# 1.6.0-rc.5 (16004) — TV player remote keys, voice search, update checker, privacy shield refinement, and final stabilization
+# 1.6.0-rc.5 (16004) — Product Excellence, Apple-like TV Restraint Design System, Database Schema v3, Watched Episode Tracking, and Library Backup/Restore
+
+- **Apple-like TV Restraint Design System**: Replaced high-contrast white inversion and neon borders with a sophisticated cinematic design token system (`NsBackground`, `NsSurface1`, `NsSurface2`, `NsAccent`, `NsTextPrimary`, `NsTextSecondary`, `NsTypography`, `NsShape`). Cards now feature 1.04x focus scaling, 2dp accent borders, and subtle glow.
+- **Unified Component Suite (`NsComponents.kt`)**: Implemented standardized TV components across all screens: `NsPosterCard`, `NsShelf`, `NsNavBar`, `NsButton`, `NsSegmentedControl`, `NsStateMessage`, and `NsToast`.
+- **Database Schema v3 & Migration**: Safely upgraded `NowShowingDatabase` to version 3 with additive `watched_episodes` table, non-destructive migration preserving all existing watchlist, history, and cache data.
+- **Per-Episode Watched Marks**: Added manual per-episode watched toggles in `DetailsScreen` and one-press "Mark up to E$N Watched" action for ordered series advancement.
+- **Local JSON Library Backup & Restore**: Added export and import for user library data (watchlist, recently opened titles, and watched episodes) with strict schema validation, duplicate protection, and merge semantics. Excludes API keys, secrets, and provider URLs.
+- **Settings Reorganization (4 Groups)**: Reorganized fragmented settings into four clean groups:
+  1. *Playback*: Autoplay next episode, remote pointer sensitivity / speed cycler ("Precision", "Slow", "Normal", "Fast").
+  2. *Library & Data*: JSON library export, JSON library import, cache clearing, and local application reset (with Watchlist preservation prompt).
+  3. *Privacy & Metadata*: EasyList / EasyPrivacy toggle controls, personal OMDb key management with live test key verification, and demo key fallback.
+  4. *About & Support*: Live memory diagnostics, health photo report, remote control guide, GitHub release update checking, and source repository links.
+- **Web-Session Continuation Honesty**: Clarified shelf and action copy across `HomeScreen` ("Recently opened", "Continue Watching · Direct streams", "Reopen Episode") without false resume-at-timestamp claims.
+- **Watchlist Polish & Undo Toast**: Implemented one-press item removal with an interactive 4-second undo toast (`NsToast`), animated grid transitions, and type filtering.
+- **Search Polish**: Added 300ms query debouncing, clear distinction between empty search results ("No results found for '$query'") and metadata service errors, and refined D-pad on-screen keyboard focus physics.
+- **Player Overlay & Translucent Ring Cursor**: Softened remote pointer into a thin translucent circular ring with micro-accent center dot, keeping provider player controls 95% visible. Player overlay auto-hides after 4s without covering bottom controls.
+- **Full Documentation Truth Sync**: Created `docs/PRODUCT_STATE.md` and `docs/PERF_BASELINE.md`, and synchronized `README.md`, `context.md`, `ARCHITECTURE.md`, `KNOWN_LIMITATIONS.md`, and `WEB_PLAYBACK.md` with release candidate specifications.
+- **Testing & Build Verification**: 171 unit tests passing (0 failures), 12 python script tests passing, with clean R8-shrunk `app-release.apk` (10.55 MB) and `app-debug.apk` (22.75 MB).
+
+# 1.6.0-rc.5-pre (16004) — TV player remote keys, voice search, update checker, privacy shield refinement, and final stabilization
 
 - **Physical Remote Media Keys**: Intercept hardware media keys (`PLAY_PAUSE`, `PLAY`, `PAUSE`, `FAST_FORWARD`, `REWIND`) in web embed playback, executing guarded JS actions with ±10s seeking and safe no-ops when video elements are unmounted or inside cross-origin iframes.
 - **1-Click Next Source**: Instant provider cycler in `SourceRegistry` preserving IMDb ID, season, and episode, accessible from the web player controls drawer and via `KEYCODE_MEDIA_NEXT` on physical remotes, with top-center TV HUD notification.

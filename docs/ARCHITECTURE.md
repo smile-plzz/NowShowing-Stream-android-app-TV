@@ -1,4 +1,4 @@
-# Current architecture — 1.5.1
+# Current architecture — 1.6.0-rc.5
 
 This describes implemented source behavior. It supersedes historical Room/native-only designs. Device performance and provider compatibility require separate TV validation.
 

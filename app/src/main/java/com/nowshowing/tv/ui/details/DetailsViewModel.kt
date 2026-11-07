@@ -20,6 +20,8 @@ data class DetailsUiState(
     val isLoading: Boolean = true,
     val detail: OmdbTitleDetail? = null,
     val isInWatchlist: Boolean = false,
+    val isWatched: Boolean = false,
+    val watchedEpisodes: Set<Pair<Int, Int>> = emptySet(),
     val totalSeasons: Int = 1,
     val selectedSeason: Int = 1,
     val episodes: List<OmdbEpisode> = emptyList(),
@@ -36,6 +38,7 @@ class DetailsViewModel(application: Application, private val repository: MediaRe
     private var loadJob: Job? = null
     private var seasonJob: Job? = null
     private var watchlistJob: Job? = null
+    private var watchedJob: Job? = null
     private val _uiState = MutableStateFlow(DetailsUiState())
     val uiState: StateFlow<DetailsUiState> = _uiState.asStateFlow()
 
@@ -44,21 +47,35 @@ class DetailsViewModel(application: Application, private val repository: MediaRe
             _uiState.value = _uiState.value.copy(selectedSource = SourceRegistry.getSourceForTitle(getApplication(), imdbId))
             viewModelScope.launch {
                 val saved = repository.isInWatchlist(imdbId)
-                if (_uiState.value.imdbId == imdbId) _uiState.value = _uiState.value.copy(isInWatchlist = saved)
+                val watched = repository.getRecentlyOpened().firstOrNull { it.imdbID == imdbId }?.watched ?: false
+                val watchedEps = repository.getWatchedEpisodes(imdbId)
+                if (_uiState.value.imdbId == imdbId) {
+                    _uiState.value = _uiState.value.copy(
+                        isInWatchlist = saved,
+                        isWatched = watched,
+                        watchedEpisodes = watchedEps
+                    )
+                }
             }
             return
         }
         loadJob?.cancel()
         seasonJob?.cancel()
         _uiState.value = DetailsUiState(
-                imdbId = imdbId,
-                type = type,
-                isLoading = true,
-                selectedSource = SourceRegistry.getSourceForTitle(getApplication(), imdbId)
-            )
+            imdbId = imdbId,
+            type = type,
+            isLoading = true,
+            selectedSource = SourceRegistry.getSourceForTitle(getApplication(), imdbId)
+        )
         loadJob = viewModelScope.launch {
             val inWatchlist = repository.isInWatchlist(imdbId)
-            _uiState.value = _uiState.value.copy(isInWatchlist = inWatchlist)
+            val watched = repository.getRecentlyOpened().firstOrNull { it.imdbID == imdbId }?.watched ?: false
+            val watchedEps = repository.getWatchedEpisodes(imdbId)
+            _uiState.value = _uiState.value.copy(
+                isInWatchlist = inWatchlist,
+                isWatched = watched,
+                watchedEpisodes = watchedEps
+            )
             val detail = repository.getDetails(imdbId)
             if (detail != null) {
                 val isSeries = detail.type == "series" || type == "series"
@@ -73,8 +90,12 @@ class DetailsViewModel(application: Application, private val repository: MediaRe
                 // If series, load remembered episode when available
                 val lastOpened = repository.getRecentlyOpened().firstOrNull { it.imdbID == imdbId }
                 val savedSeason = lastOpened?.season?.coerceIn(1, numSeasons.coerceAtLeast(1)) ?: 1
-                _uiState.value = _uiState.value.copy(selectedSeason = savedSeason, selectedEpisode = lastOpened?.episode?.coerceAtLeast(1) ?: 1, isLoading = false)
-                // If series, load season 1 episodes
+                _uiState.value = _uiState.value.copy(
+                    selectedSeason = savedSeason,
+                    selectedEpisode = lastOpened?.episode?.coerceAtLeast(1) ?: 1,
+                    isLoading = false
+                )
+                // If series, load season episodes
                 if (isSeries) {
                     loadSeasonEpisodes(imdbId, savedSeason)
                 }
@@ -132,10 +153,50 @@ class DetailsViewModel(application: Application, private val repository: MediaRe
         }
     }
 
+    fun toggleTitleWatched() {
+        val id = _uiState.value.imdbId
+        if (id.isBlank() || watchedJob?.isActive == true) return
+        val newWatched = !_uiState.value.isWatched
+        watchedJob = viewModelScope.launch {
+            repository.setRecentlyWatched(id, newWatched)
+            if (_uiState.value.imdbId == id) {
+                _uiState.value = _uiState.value.copy(isWatched = newWatched)
+            }
+        }
+    }
+
+    fun toggleEpisodeWatched(season: Int, episode: Int) {
+        val id = _uiState.value.imdbId
+        if (id.isBlank()) return
+        val pair = Pair(season, episode)
+        val isCurrentlyWatched = _uiState.value.watchedEpisodes.contains(pair)
+        viewModelScope.launch {
+            repository.setEpisodeWatched(id, season, episode, !isCurrentlyWatched)
+            val updated = repository.getWatchedEpisodes(id)
+            if (_uiState.value.imdbId == id) {
+                _uiState.value = _uiState.value.copy(watchedEpisodes = updated)
+            }
+        }
+    }
+
+    fun markPreviousEpisodesWatched(
+        season: Int = _uiState.value.selectedSeason,
+        episode: Int = _uiState.value.selectedEpisode
+    ) {
+        val id = _uiState.value.imdbId
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            repository.markPreviousEpisodesWatched(id, season, episode)
+            val updated = repository.getWatchedEpisodes(id)
+            if (_uiState.value.imdbId == id) {
+                _uiState.value = _uiState.value.copy(watchedEpisodes = updated)
+            }
+        }
+    }
+
     fun setSource(source: VideoSource) {
         _uiState.value = _uiState.value.copy(selectedSource = source)
         SourceRegistry.setPreferredSource(getApplication(), source.name)
         SourceRegistry.setSourceForTitle(getApplication(), _uiState.value.imdbId, source)
     }
 }
-

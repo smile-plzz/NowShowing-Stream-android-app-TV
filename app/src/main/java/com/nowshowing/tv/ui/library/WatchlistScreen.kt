@@ -1,51 +1,25 @@
 package com.nowshowing.tv.ui.library
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.layout.fillMaxWidth
-import com.nowshowing.tv.ui.player.TvPlayerActionButton
-import androidx.compose.runtime.LaunchedEffect
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BookmarkBorder
-import androidx.compose.material3.Icon
-import com.nowshowing.tv.ui.theme.CardBorder
-import com.nowshowing.tv.ui.theme.SurfaceDark
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nowshowing.tv.ui.common.TvFocusableCard
-import com.nowshowing.tv.ui.common.TvTopBar
-import com.nowshowing.tv.ui.theme.AccentCyan
-import com.nowshowing.tv.ui.theme.BgDark
-import com.nowshowing.tv.ui.theme.TextMuted
-import com.nowshowing.tv.ui.theme.TextPrimary
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.nowshowing.tv.ui.common.*
+import com.nowshowing.tv.ui.theme.*
+import kotlinx.coroutines.delay
 
 @Composable
 fun WatchlistScreen(
@@ -58,6 +32,8 @@ fun WatchlistScreen(
 
     var selectedType by rememberSaveable { mutableStateOf(WatchlistType.ALL) }
     var selectedSort by rememberSaveable { mutableStateOf(WatchlistSort.RECENT) }
+    var isRemoveMode by rememberSaveable { mutableStateOf(false) }
+
     val visibleItems = remember(uiState.items, selectedType, selectedSort) {
         presentWatchlist(uiState.items, selectedType, selectedSort)
     }
@@ -66,108 +42,141 @@ fun WatchlistScreen(
         viewModel.loadWatchlist()
     }
 
-    Column(
+    // Auto-dismiss undo message after 5 seconds
+    LaunchedEffect(uiState.undoMessage) {
+        if (uiState.undoMessage != null) {
+            delay(5000)
+            viewModel.dismissUndo()
+        }
+    }
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(BgDark)
+            .background(NsBackground)
     ) {
-        TvTopBar(currentRoute = "watchlist", onNavigate = onNavigate)
-
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 48.dp, vertical = 12.dp)
+            modifier = Modifier.fillMaxSize()
         ) {
-            Text(
-                text = "Your Watchlist",
-                color = TextPrimary,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold
-            )
+            TvTopBar(currentRoute = "watchlist", onNavigate = onNavigate)
 
-            LazyRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                item {
-                    TvPlayerActionButton("Show: ${selectedType.label}", null) {
-                        selectedType = WatchlistType.entries[(selectedType.ordinal + 1) % WatchlistType.entries.size]
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = NsSpacing.safeMarginHorizontal, vertical = 12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "Your Watchlist",
+                            style = NsTypography.Title,
+                            color = NsTextPrimary
+                        )
+                        Text(
+                            text = "${visibleItems.size} of ${uiState.items.size} saved titles",
+                            style = NsTypography.Caption,
+                            color = NsTextSecondary
+                        )
                     }
-                }
-                item {
-                    TvPlayerActionButton("Sort: ${selectedSort.label}", null) {
-                        selectedSort = WatchlistSort.entries[(selectedSort.ordinal + 1) % WatchlistSort.entries.size]
-                    }
-                }
-                item { TvPlayerActionButton("Find titles", null) { onNavigate("search") } }
-            }
-            Text("${visibleItems.size} of ${uiState.items.size} saved titles", color = TextMuted, fontSize = 13.sp)
-            Spacer(modifier = Modifier.height(14.dp))
 
-            if (uiState.isLoading) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = AccentCyan)
-                }
-            } else if (visibleItems.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    androidx.compose.foundation.layout.Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
-                        modifier = Modifier.padding(32.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(64.dp)
-                                .clip(RoundedCornerShape(32.dp))
-                                .background(SurfaceDark)
-                                .border(1.dp, CardBorder, RoundedCornerShape(32.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.BookmarkBorder,
-                                contentDescription = null,
-                                tint = AccentCyan,
-                                modifier = Modifier.size(32.dp)
+                    // Action buttons: Filter, Sort, Mode, Find
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        item {
+                            NsButton(
+                                label = selectedType.label,
+                                variant = NsButtonVariant.Secondary,
+                                onClick = {
+                                    selectedType = WatchlistType.entries[(selectedType.ordinal + 1) % WatchlistType.entries.size]
+                                }
                             )
                         }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = if (uiState.items.isEmpty()) "Your Watchlist is Empty" else "No saved ${selectedType.label.lowercase()}",
-                            color = TextPrimary,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = if (uiState.items.isEmpty()) "Discover movies and series to save for your evening viewing." else "Try changing the filter to show movies or series.",
-                            color = TextMuted,
-                            fontSize = 14.sp
-                        )
-                        Spacer(modifier = Modifier.height(20.dp))
-                        androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            TvPlayerActionButton("Find titles", null) { onNavigate("search") }
-                            TvPlayerActionButton("Browse movies", null) { onNavigate("movies") }
+                        item {
+                            NsButton(
+                                label = selectedSort.label,
+                                variant = NsButtonVariant.Secondary,
+                                onClick = {
+                                    selectedSort = WatchlistSort.entries[(selectedSort.ordinal + 1) % WatchlistSort.entries.size]
+                                }
+                            )
+                        }
+                        item {
+                            NsButton(
+                                label = if (isRemoveMode) "Mode: Remove On Click" else "Mode: Open",
+                                variant = if (isRemoveMode) NsButtonVariant.Destructive else NsButtonVariant.Secondary,
+                                onClick = { isRemoveMode = !isRemoveMode }
+                            )
+                        }
+                        item {
+                            NsButton(
+                                label = "Find Titles",
+                                variant = NsButtonVariant.Secondary,
+                                onClick = { onNavigate("search") }
+                            )
                         }
                     }
                 }
-            } else {
-                LazyVerticalGrid(
-                    state = gridState,
-                    columns = GridCells.Adaptive(minSize = 145.dp),
-                    contentPadding = PaddingValues(bottom = 32.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    items(visibleItems, key = { it.imdbID }) { movie ->
-                        TvFocusableCard(
-                            focusKey = "watchlist:${movie.imdbID}",
-                            title = movie.title,
-                            posterUrl = movie.poster,
-                            year = movie.year,
-                            badge = if (movie.type == "series") "Series" else null,
-                            onClick = { onTitleClick(movie.imdbID, movie.type) }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (uiState.isLoading) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = NsAccent)
+                    }
+                } else if (visibleItems.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        NsStateMessage(
+                            title = if (uiState.items.isEmpty()) "Your Watchlist is Empty" else "No saved ${selectedType.label.lowercase()}",
+                            message = if (uiState.items.isEmpty()) "Save movies and series for your evening viewing." else "Try changing the filter to show all saved titles.",
+                            actionLabel = if (uiState.items.isEmpty()) "Find Titles to Watch" else "Reset Filter",
+                            onAction = {
+                                if (uiState.items.isEmpty()) onNavigate("search")
+                                else selectedType = WatchlistType.ALL
+                            }
                         )
+                    }
+                } else {
+                    LazyVerticalGrid(
+                        state = gridState,
+                        columns = GridCells.Adaptive(minSize = 150.dp),
+                        contentPadding = PaddingValues(bottom = 48.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        items(items = visibleItems, key = { it.imdbID }) { movie ->
+                            NsPosterCard(
+                                focusKey = "watchlist:${movie.imdbID}",
+                                title = movie.title,
+                                posterUrl = movie.poster,
+                                year = movie.year,
+                                badge = if (isRemoveMode) "Tap to remove" else if (movie.type == "series") "Series" else null,
+                                onClick = {
+                                    if (isRemoveMode) {
+                                        viewModel.removeItem(movie)
+                                    } else {
+                                        onTitleClick(movie.imdbID, movie.type)
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
             }
+        }
+
+        // Undo Toast notification
+        val undoMsg = uiState.undoMessage
+        if (undoMsg != null) {
+            NsToast(
+                message = undoMsg,
+                actionLabel = "Undo",
+                onAction = { viewModel.undoRemove() },
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
         }
     }
 }
